@@ -43,6 +43,14 @@ We don't know yet if this information will be stored at the domain level or if w
 
 This API should be REST first, but also provide a GraphQL endpoint that allows getting some specific information and dive deep into the hierarchy of resources.
 
+From the end user perspective, those actions should be possible and should mostly be reflected in the API structure (sites is used interchangeably with domains):
+
+- Get N latest sites in the homepage, for each one see the screenshot of the homepage, the url, the category of the site
+- Get N latest sites of a specific category, specific industry, specific technology, etc.
+- For a site, see the latest screenshots and informations for their interesting urls
+- Same as above but at any point in time, so that we can see what the site looked like one month ago, one year ago, etc depending on the frequency of the crawl
+- For a specific url, see all the information like the summary, the page purpose, the page colors, etc.
+
 ## Technical requirements
 
 - All the code for this project should be written using ES6 syntax.
