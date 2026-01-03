@@ -29,8 +29,10 @@
   "homepage": "https://github.com/jverneaut/collect-api#readme",
   "dependencies": {
     "@fastify/env": "^4.0.0",
+    "@fastify/swagger": "^8.15.0",
     "@fastify/sensible": "^5.6.0",
     "@prisma/client": "^6.0.0",
+    "@scalar/fastify-api-reference": "^1.19.1",
     "dotenv": "^16.4.7",
     "fastify": "^4.29.1",
     "fastify-plugin": "^4.5.1",

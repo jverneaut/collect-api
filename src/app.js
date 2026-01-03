@@ -7,6 +7,8 @@ import { responsePlugin } from './plugins/response.js';
 import { prismaPlugin } from './plugins/prisma.js';
 import { servicesPlugin } from './plugins/services.js';
 import { metricsPlugin } from './plugins/metrics.js';
+import { openapiPlugin } from './plugins/openapi.js';
+import { apiReferencePlugin } from './plugins/apiReference.js';
 import { graphqlPlugin } from './plugins/graphql.js';
 
 import { healthRoutes } from './routes/health.js';
@@ -30,6 +32,8 @@ export async function buildApp(options = {}) {
   await app.register(responsePlugin);
   await app.register(prismaPlugin);
   await app.register(servicesPlugin);
+  await app.register(openapiPlugin);
+  await app.register(apiReferencePlugin);
   await app.register(metricsPlugin);
   await app.register(graphqlPlugin);
 

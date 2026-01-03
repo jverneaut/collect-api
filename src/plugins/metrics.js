@@ -29,7 +29,7 @@ export const metricsPlugin = fp(async (app) => {
       .observe(durationMs);
   });
 
-  app.get('/metrics', async (_request, reply) => {
+  app.get('/metrics', { schema: { hide: true } }, async (_request, reply) => {
     reply.header('content-type', register.contentType);
     return register.metrics();
   });

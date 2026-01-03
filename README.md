@@ -14,6 +14,7 @@ Health: `GET /health`
 Ready: `GET /ready`  
 Metrics (if enabled): `GET /metrics`  
 GraphQL (if enabled): `POST /graphql` and GraphiQL at `/graphiql`
+API Reference (if enabled): `/reference`
 
 ## Core REST endpoints
 

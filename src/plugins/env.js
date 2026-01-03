@@ -13,6 +13,8 @@ export const envPlugin = fp(async (app) => {
       LOG_LEVEL: { type: 'string', default: 'info' },
       GRAPHQL_ENABLED: { type: 'boolean', default: true },
       METRICS_ENABLED: { type: 'boolean', default: true },
+      OPENAPI_ENABLED: { type: 'boolean', default: true },
+      API_REFERENCE_ENABLED: { type: 'boolean', default: true },
     },
   };
 
@@ -21,4 +23,3 @@ export const envPlugin = fp(async (app) => {
     dotenv: false,
   });
 });
-
