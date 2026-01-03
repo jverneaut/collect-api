@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Domain {
+  id           String         @id @default(cuid())
+  host         String         @unique
+  canonicalUrl String
+  displayName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  urls    Url[]
+  profile DomainProfile?
+}
+
+model DomainProfile {
+  domainId String @id
+  domain   Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  sourceCrawlId String?
+
+  name             String?
+  description      String?
+  primaryColorsJson String?
+  styleTagsJson     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Url {
+  id            String  @id @default(cuid())
+  domainId      String
+  domain        Domain  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  path          String
+  normalizedUrl String  @unique
+  type          String @default("OTHER")
+  isCanonical   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crawls UrlCrawl[]
+
+  @@unique([domainId, path])
+  @@index([domainId, type])
+}
+
+model UrlCrawl {
+  id     String @id @default(cuid())
+  urlId  String
+  url    Url    @relation(fields: [urlId], references: [id], onDelete: Cascade)
+
+  status    String @default("PENDING")
+  startedAt DateTime?
+  finishedAt DateTime?
+  crawledAt DateTime?
+
+  httpStatus      Int?
+  finalUrl        String?
+  title           String?
+  metaDescription String?
+  language        String?
+  contentHash     String?
+  error           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  screenshots   Screenshot[]
+  tasks         CrawlTask[]
+  categories    CrawlCategory[]
+  technologies  CrawlTechnology[]
+
+  @@index([urlId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CrawlTask {
+  id      String       @id @default(cuid())
+  crawlId String
+  crawl   UrlCrawl     @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+
+  type   String
+  status String @default("PENDING")
+
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  error         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([crawlId, type])
+  @@index([status, type])
+}
+
+model Screenshot {
+  id      String         @id @default(cuid())
+  crawlId String
+  crawl   UrlCrawl       @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  kind    String @default("FULL_PAGE")
+
+  width      Int?
+  height     Int?
+  format     String?
+  storageKey String?
+  publicUrl  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([crawlId])
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crawls CrawlCategory[]
+}
+
+model CrawlCategory {
+  crawlId    String
+  categoryId String
+
+  crawl    UrlCrawl  @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  confidence Float?
+
+  @@id([crawlId, categoryId])
+  @@index([categoryId])
+}
+
+model Technology {
+  id         String  @id @default(cuid())
+  slug       String  @unique
+  name       String
+  websiteUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crawls CrawlTechnology[]
+}
+
+model CrawlTechnology {
+  crawlId      String
+  technologyId String
+
+  crawl      UrlCrawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  confidence Float?
+
+  @@id([crawlId, technologyId])
+  @@index([technologyId])
+}

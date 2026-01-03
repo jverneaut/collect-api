@@ -64,6 +64,8 @@ From the end user perspective, those actions should be possible and should mostl
 - Urls will have no information at first when created while their informations are fetched. We should provide clean responses for them that showcase was is currently going on so that downstream consumers know what to do with those resources.
 - Error handling should look the same accros the API, as do the API responses.
 - The API should have observability built in so that we can have smart insights about what is actually going on, what routes are slow, what works great, what breaks, etc.
+- For GraphQL resources and REST endpoints, whenever we do the same things, we should build a controller or a service to do it. So for example if we can query sites, we should have a SitesService or something like this that exposes a method to do it, and use that instead of direct Prisma manipulation.
+- The code is formatted with prettier and should always obey its standards
 
 ## 3rd party tools
 
