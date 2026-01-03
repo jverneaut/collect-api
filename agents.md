@@ -29,6 +29,8 @@ Here are the different resources:
 | screenshot                                          | A screenshot belongs to a url and is the image of the url that was screenshotted.                                                                                                                                                       |
 | crawled_url (better resource name may be discussed) | Each url may be crawled a number of times with different results, different screenshots, different categories, etc. This resources serves as an intermediary holder that links all those resources to the url.                          |
 
+Whenever we have categories, types, technologies, etc, which have a fixed set of possible outcomes that can grow over time, we should also have a resource for it so that we can add extra info for them, create pages specific to them, etc.
+
 When we query a domain, we are expected to get back a number of urls, each urls having multiple crawls that themselves have multiple informations like their screenshot, their category, their content, their summary, their colors, etc.
 
 For the end user, they can experience this with a timeline-like UI that allows them to see a site at different points in time to see what has changed over time. This applies to urls too.
@@ -50,6 +52,10 @@ This API should be REST first, but also provide a GraphQL endpoint that allows g
 - The project should follow the 12 factors best practices.
 - The project should be ready to be dockerized and run on docker compatible runtimes (Kubernetes, Cloud Run, etc.)
 - All routes must be thoroughly validated and error handled so that we always know when something goes wrong.
+- A lot of the data fetching for the different informations about a URL can fail at some point. Resilience should be built from day one with a durable execution engine like restate.
+- Urls will have no information at first when created while their informations are fetched. We should provide clean responses for them that showcase was is currently going on so that downstream consumers know what to do with those resources.
+- Error handling should look the same accros the API, as do the API responses.
+- The API should have observability built in so that we can have smart insights about what is actually going on, what routes are slow, what works great, what breaks, etc.
 
 ## 3rd party tools
 
