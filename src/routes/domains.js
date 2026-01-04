@@ -4,7 +4,7 @@ const DomainInputSchema = {
   additionalProperties: false,
   properties: {
     domain: { type: "string", minLength: 1 },
-    createHomepageUrl: { type: "boolean", default: true },
+    createHomepageUrl: { type: "boolean", default: false },
     createInitialCrawl: { type: "boolean", default: true },
     enqueueIngestion: { type: "boolean", default: true },
     ingestion: {

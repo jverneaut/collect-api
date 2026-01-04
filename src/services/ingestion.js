@@ -221,15 +221,7 @@ export function makeIngestionService(app) {
       });
       const pages = normalizePagesResult(pagesRaw);
 
-      const withHomepage = pages.some(
-        (p) =>
-          stripWww(new URL(p.url).host) === stripWww(domain.host) &&
-          new URL(p.url).pathname === "/",
-      )
-        ? pages
-        : [{ url: domain.canonicalUrl, type: "homepage" }, ...pages];
-
-      const filtered = withHomepage
+      const filtered = pages
         .filter((p) => {
           const host = stripWww(new URL(p.url).host);
           return host === stripWww(domain.host);

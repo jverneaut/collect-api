@@ -31,6 +31,10 @@ Trigger a run (async job):
 - Poll job: `GET /jobs/:jobId`
 - List crawl runs for a domain: `GET /domains/:domainId/crawl-runs`
 
+Homepage URL:
+
+- The API does not precreate a homepage URL by default (some sites use `/en`, etc.); ingestion relies on the homepage returned by the pages-finder.
+
 Shopify hint:
 
 - If you pass `{ "isShopify": true }` to ingestion, the API forwards it to the pages-finder to discover Shopify-specific pages.
