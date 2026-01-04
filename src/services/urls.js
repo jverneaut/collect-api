@@ -1,6 +1,22 @@
 import { normalizeUrlForDomainHost } from '../lib/normalize.js';
 import { clampLimit, decodeCursor, encodeCursor, makeCreatedAtCursorWhere } from '../lib/pagination.js';
 
+function normalizeUrlsScope(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (['all', 'any'].includes(normalized)) return 'ALL';
+  if (['crawl_run', 'crawl-run', 'crawlrun', 'run'].includes(normalized)) return 'CRAWL_RUN';
+  return 'LATEST_CRAWL_RUN';
+}
+
+function normalizePreferStatus(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  return normalized === 'ANY' ? 'ANY' : 'SUCCESS';
+}
+
 export function makeUrlsService(app) {
   return {
     async getUrlById(urlId) {
@@ -45,10 +61,33 @@ export function makeUrlsService(app) {
       const domain = await app.prisma.domain.findUnique({ where: { id: domainId } });
       if (!domain) throw app.httpErrors.notFound('Domain not found');
 
+      const scope = normalizeUrlsScope(options.scope);
+      const preferStatus = normalizePreferStatus(options.preferRunStatus);
+
+      let crawlRunId = null;
+      if (scope === 'CRAWL_RUN') {
+        if (!options.crawlRunId) throw app.httpErrors.badRequest('crawlRunId is required when scope=crawl_run');
+        crawlRunId = options.crawlRunId;
+      }
+
+      if (scope === 'LATEST_CRAWL_RUN') {
+        const orderBy = [{ createdAt: 'desc' }, { id: 'desc' }];
+        const successful =
+          preferStatus === 'SUCCESS'
+            ? await app.prisma.crawlRun.findFirst({
+                where: { domainId: domain.id, status: 'SUCCESS' },
+                orderBy,
+              })
+            : null;
+        const latest = successful ?? (await app.prisma.crawlRun.findFirst({ where: { domainId: domain.id }, orderBy }));
+        crawlRunId = latest?.id ?? null;
+      }
+
       return app.prisma.url.findMany({
         where: {
           domainId: domain.id,
           ...(options.type ? { type: options.type } : {}),
+          ...(crawlRunId ? { crawls: { some: { crawlRunId } } } : {}),
         },
         orderBy: [{ type: 'asc' }, { createdAt: 'asc' }],
         take: options.limit ? clampLimit(options.limit, { max: 200, fallback: 50 }) : undefined,

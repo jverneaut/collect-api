@@ -61,6 +61,17 @@ const GetQuerySchema = {
     includeLatestCrawls: { type: "boolean", default: true },
     includeProfile: { type: "boolean", default: true },
     includeDerived: { type: "boolean", default: true },
+    urlsScope: {
+      type: "string",
+      enum: ["all", "latest_crawl_run", "crawl_run"],
+      default: "latest_crawl_run",
+    },
+    urlsCrawlRunId: { type: "string", minLength: 1 },
+    urlsPreferRunStatus: {
+      type: "string",
+      enum: ["ANY", "SUCCESS"],
+      default: "SUCCESS",
+    },
     latestCrawlStatus: {
       type: "string",
       enum: ["ANY", "SUCCESS"],

@@ -30,6 +30,7 @@ Trigger a run (async job):
 - `POST /domains/:domainId/ingest`
 - Poll job: `GET /jobs/:jobId`
 - List crawl runs for a domain: `GET /domains/:domainId/crawl-runs`
+- Get crawl run results (overview + found URLs): `GET /crawl-runs/:crawlRunId`
 
 Homepage URL:
 
@@ -45,17 +46,23 @@ Technologies scope:
 - By default, technologies are detected once from the homepage and copied to every crawled URL (faster and matches most sites).
 - To detect technologies per URL, pass `{ "technologies": { "scope": "per_url" } }`.
 
+URL visibility:
+
+- URLs remain stored even if they stop being discovered in later runs.
+- Default listing hides URLs not found in the latest crawl run: `GET /domains/:domainId/urls?scope=latest_crawl_run`.
+- You can inspect a specific run: `GET /domains/:domainId/urls?scope=crawl_run&crawlRunId=...` or `GET /crawl-runs/:crawlRunId`.
+
 ## Core REST endpoints
 
 - `POST /domains`
 - `GET /domains`
 - `GET /domains/:domainId`
 - `POST /domains/:domainId/urls`
-- `GET /domains/:domainId/urls`
+- `GET /domains/:domainId/urls` (by default only URLs found in the latest crawl run)
 - `GET /domains/:domainId/urls/:urlId`
 - `POST /domains/:domainId/ingest` (discover URLs + crawl them)
 - `GET /domains/:domainId/crawl-runs` (domain-level crawl requests)
-- `GET /crawl-runs/:crawlRunId`
+- `GET /crawl-runs/:crawlRunId` (includes per-run overview + URLs found by default)
 - `POST /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls/:crawlId`

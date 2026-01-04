@@ -11,6 +11,18 @@ const ListQuerySchema = {
   properties: {
     limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
     status: { type: 'string', enum: ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED'] },
+    includeOverview: { type: 'boolean', default: false },
+    overviewPreferStatus: { type: 'string', enum: ['ANY', 'SUCCESS'], default: 'SUCCESS' },
+  },
+};
+
+const GetCrawlRunQuerySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    includeUrls: { type: 'boolean', default: true },
+    includeOverview: { type: 'boolean', default: true },
+    overviewPreferStatus: { type: 'string', enum: ['ANY', 'SUCCESS'], default: 'SUCCESS' },
   },
 };
 
@@ -43,13 +55,12 @@ export async function crawlRunRoutes(app) {
           additionalProperties: false,
           properties: { crawlRunId: { type: 'string', minLength: 1 } },
         },
+        querystring: GetCrawlRunQuerySchema,
       },
     },
     async (request, reply) => {
-      const crawlRun = await app.services.crawlRuns.getCrawlRun(request.params.crawlRunId);
-      if (!crawlRun) throw app.httpErrors.notFound('Crawl run not found');
+      const crawlRun = await app.services.crawlRuns.getCrawlRunWithResults(request.params.crawlRunId, request.query);
       reply.ok(crawlRun);
     }
   );
 }
-

@@ -1,6 +1,22 @@
 import { normalizeDomainInput, normalizeUrlInput } from '../lib/normalize.js';
 import { clampLimit, decodeCursor, encodeCursor, makeCreatedAtCursorWhere } from '../lib/pagination.js';
 
+function normalizeUrlsScope(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (['all', 'any'].includes(normalized)) return 'ALL';
+  if (['crawl_run', 'crawl-run', 'crawlrun', 'run'].includes(normalized)) return 'CRAWL_RUN';
+  return 'LATEST_CRAWL_RUN';
+}
+
+function normalizePreferStatus(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  return normalized === 'ANY' ? 'ANY' : 'SUCCESS';
+}
+
 export function makeDomainsService(app) {
   return {
     async createDomain(input) {
@@ -161,15 +177,45 @@ export function makeDomainsService(app) {
 
       if (options.includeUrls) {
         const includeLatest = options.includeLatestCrawls;
-        const statusFilter = options.latestCrawlStatus === 'SUCCESS' ? { status: 'SUCCESS' } : undefined;
+        const urlsScope = normalizeUrlsScope(options.urlsScope);
+        const preferRunStatus = normalizePreferStatus(options.urlsPreferRunStatus);
+
+        let crawlRunId = null;
+        if (urlsScope === 'CRAWL_RUN') {
+          if (!options.urlsCrawlRunId) throw app.httpErrors.badRequest('urlsCrawlRunId is required when urlsScope=crawl_run');
+          crawlRunId = options.urlsCrawlRunId;
+        } else if (urlsScope === 'LATEST_CRAWL_RUN') {
+          const orderBy = [{ createdAt: 'desc' }, { id: 'desc' }];
+          const successful =
+            preferRunStatus === 'SUCCESS'
+              ? await app.prisma.crawlRun.findFirst({
+                  where: { domainId: domain.id, status: 'SUCCESS' },
+                  orderBy,
+                })
+              : null;
+          const latest = successful ?? (await app.prisma.crawlRun.findFirst({ where: { domainId: domain.id }, orderBy }));
+          crawlRunId = latest?.id ?? null;
+        }
+
+        response.urlsScope = options.urlsScope ?? 'latest_crawl_run';
+        response.urlsCrawlRunId = crawlRunId;
+
+        const statusFilter =
+          crawlRunId || options.latestCrawlStatus !== 'SUCCESS' ? undefined : { status: 'SUCCESS' };
 
         response.urls = await app.prisma.url.findMany({
-          where: { domainId: domain.id },
+          where: {
+            domainId: domain.id,
+            ...(crawlRunId ? { crawls: { some: { crawlRunId } } } : {}),
+          },
           orderBy: [{ type: 'asc' }, { createdAt: 'asc' }],
           include: includeLatest
             ? {
                 crawls: {
-                  where: statusFilter,
+                  where: {
+                    ...(crawlRunId ? { crawlRunId } : {}),
+                    ...(statusFilter ?? {}),
+                  },
                   orderBy: [{ createdAt: 'desc' }],
                   take: 1,
                   include: {
@@ -182,6 +228,8 @@ export function makeDomainsService(app) {
               }
             : undefined,
         });
+
+        if (crawlRunId) response.foundUrlsCount = response.urls.length;
       }
 
       return response;

@@ -23,6 +23,16 @@ const ListCrawlsQuerySchema = {
   },
 };
 
+const ListUrlsQuerySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    scope: { type: 'string', enum: ['all', 'latest_crawl_run', 'crawl_run'], default: 'latest_crawl_run' },
+    crawlRunId: { type: 'string', minLength: 1 },
+    preferRunStatus: { type: 'string', enum: ['ANY', 'SUCCESS'], default: 'SUCCESS' },
+  },
+};
+
 export async function urlRoutes(app) {
   app.post(
     '/domains/:domainId/urls',
@@ -53,10 +63,11 @@ export async function urlRoutes(app) {
           additionalProperties: false,
           properties: { domainId: { type: 'string', minLength: 1 } },
         },
+        querystring: ListUrlsQuerySchema,
       },
     },
     async (request, reply) => {
-      const urls = await app.services.urls.listUrlsForDomain(request.params.domainId);
+      const urls = await app.services.urls.listUrlsForDomain(request.params.domainId, request.query);
       reply.ok({ items: urls });
     }
   );
