@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 
 import { envPlugin } from './plugins/env.js';
 import { responsePlugin } from './plugins/response.js';
+import { corsPlugin } from './plugins/cors.js';
 import { prismaPlugin } from './plugins/prisma.js';
 import { servicesPlugin } from './plugins/services.js';
 import { metricsPlugin } from './plugins/metrics.js';
@@ -28,6 +29,7 @@ export async function buildApp(options = {}) {
   });
 
   await app.register(envPlugin);
+  await app.register(corsPlugin);
   await app.register(sensible);
   await app.register(responsePlugin);
   await app.register(prismaPlugin);
