@@ -30,6 +30,11 @@ Trigger a run (async job):
 - `POST /domains/:domainId/ingest`
 - Poll job: `GET /jobs/:jobId`
 
+Shopify hint:
+
+- If you pass `{ "isShopify": true }` to ingestion, the API forwards it to the pages-finder to discover Shopify-specific pages.
+- If omitted, the API tries to detect Shopify from an initial technologies scan of the homepage and forwards `isShopify` automatically.
+
 ## Core REST endpoints
 
 - `POST /domains`

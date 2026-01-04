@@ -9,6 +9,7 @@ const IngestBodySchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    isShopify: { type: 'boolean' },
     maxUrls: { type: 'integer', minimum: 1, maximum: 200, default: 20 },
     urlConcurrency: { type: 'integer', minimum: 1, maximum: 20, default: 3 },
     screenshot: {

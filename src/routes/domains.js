@@ -11,6 +11,7 @@ const DomainInputSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
+        isShopify: { type: 'boolean' },
         maxUrls: { type: 'integer', minimum: 1, maximum: 200 },
         urlConcurrency: { type: 'integer', minimum: 1, maximum: 20 },
         screenshot: {

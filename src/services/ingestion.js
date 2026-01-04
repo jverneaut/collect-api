@@ -67,6 +67,15 @@ function normalizeTechnologiesResult(result) {
     .filter(Boolean);
 }
 
+function isShopifyFromTechnologies(technologies) {
+  return technologies.some((t) => t.slug === 'shopify' || String(t.name).toLowerCase().includes('shopify'));
+}
+
+function pickTechnologiesForPagesFinder(technologies, limit = 50) {
+  const slugs = technologies.map((t) => t.slug).filter(Boolean);
+  return slugs.slice(0, limit);
+}
+
 function extensionForContentType(contentType) {
   const value = String(contentType || '').toLowerCase();
   if (value.includes('png')) return 'png';
@@ -117,9 +126,42 @@ export function makeIngestionService(app) {
       const maxUrls = Math.max(1, Math.min(Number(options.maxUrls ?? 20), 200));
       const urlConcurrency = Math.max(1, Math.min(Number(options.urlConcurrency ?? 3), 20));
 
-      update({ progress: { stage: 'discovering_pages' } });
+      let discoveryTechnologies = [];
+      let isShopify = options.isShopify === true || options.isShopify === false ? options.isShopify : null;
 
-      const pagesRaw = await app.mb.pagesFinder.pages(domain.canonicalUrl, { signal });
+      if (isShopify === null) {
+        update({ progress: { stage: 'detecting_technologies_for_discovery' } });
+        try {
+          const raw = await app.mb.technologiesFinder.technologies(domain.canonicalUrl, {
+            fast: true,
+            recursive: false,
+            maxDepth: 1,
+            maxUrls: 3,
+            timeoutMs: options.technologies?.timeoutMs ?? 60_000,
+            signal,
+          });
+          discoveryTechnologies = normalizeTechnologiesResult(raw);
+          isShopify = isShopifyFromTechnologies(discoveryTechnologies);
+        } catch (error) {
+          isShopify = false;
+          update({
+            progress: {
+              stage: 'detecting_technologies_for_discovery_failed',
+              error: error?.message || 'Failed to detect technologies for discovery',
+            },
+          });
+        }
+      }
+
+      const technologiesForPagesFinder = pickTechnologiesForPagesFinder(discoveryTechnologies);
+
+      update({ progress: { stage: 'discovering_pages', isShopify, technologies: technologiesForPagesFinder.length } });
+
+      const pagesRaw = await app.mb.pagesFinder.pages(domain.canonicalUrl, {
+        isShopify,
+        technologies: technologiesForPagesFinder.length ? technologiesForPagesFinder : undefined,
+        signal,
+      });
       const pages = normalizePagesResult(pagesRaw);
 
       const withHomepage = pages.some((p) => stripWww(new URL(p.url).host) === stripWww(domain.host) && new URL(p.url).pathname === '/')
@@ -147,6 +189,12 @@ export function makeIngestionService(app) {
       }
 
       update({ progress: { stage: 'crawling_urls', urls: urls.length } });
+
+      const homepageUrl = urls.find((u) => u.type === 'HOMEPAGE') ?? null;
+      const precomputedTechnologiesByUrlId = new Map();
+      if (homepageUrl && discoveryTechnologies.length) {
+        precomputedTechnologiesByUrlId.set(homepageUrl.id, discoveryTechnologies);
+      }
 
       const results = await runWithLimit(urlConcurrency, urls, async (url) => {
         const crawl = await app.services.crawls.createCrawl(url.id, {
@@ -188,12 +236,15 @@ export function makeIngestionService(app) {
 
         const technologiesPromise = (async () => {
           await app.services.crawls.patchTask(crawl.id, 'TECHNOLOGIES', { status: 'RUNNING' });
-          const raw = await app.mb.technologiesFinder.technologies(url.normalizedUrl, {
-            timeoutMs: options.technologies?.timeoutMs ?? 60_000,
-            signal,
-          });
-
-          const technologies = normalizeTechnologiesResult(raw);
+          const precomputed = precomputedTechnologiesByUrlId.get(url.id);
+          const technologies = precomputed
+            ? precomputed
+            : normalizeTechnologiesResult(
+                await app.mb.technologiesFinder.technologies(url.normalizedUrl, {
+                  timeoutMs: options.technologies?.timeoutMs ?? 60_000,
+                  signal,
+                })
+              );
 
           await app.prisma.$transaction(async (tx) => {
             await tx.crawlTechnology.deleteMany({ where: { crawlId: crawl.id } });
