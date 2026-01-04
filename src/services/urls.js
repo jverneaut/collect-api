@@ -41,19 +41,37 @@ export function makeUrlsService(app) {
         throw app.httpErrors.badRequest(error?.message || 'Invalid URL');
       }
 
-      return app.prisma.url.upsert({
-        where: { normalizedUrl: normalized.normalizedUrl },
-        update: {
-          type: input.type ?? undefined,
-          isCanonical: input.isCanonical ?? undefined,
-        },
-        create: {
-          domainId: domain.id,
-          path: normalized.path,
-          normalizedUrl: normalized.normalizedUrl,
-          type: input.type ?? 'OTHER',
-          isCanonical: input.isCanonical ?? false,
-        },
+      return app.prisma.$transaction(async (tx) => {
+        const url = await tx.url.upsert({
+          where: { normalizedUrl: normalized.normalizedUrl },
+          update: {
+            type: input.type ?? undefined,
+            isCanonical: input.isCanonical ?? undefined,
+          },
+          create: {
+            domainId: domain.id,
+            path: normalized.path,
+            normalizedUrl: normalized.normalizedUrl,
+            type: input.type ?? 'OTHER',
+            isCanonical: input.isCanonical ?? false,
+          },
+        });
+
+        if (input.type === 'HOMEPAGE') {
+          await tx.url.updateMany({
+            where: { domainId: domain.id, id: { not: url.id }, type: 'HOMEPAGE' },
+            data: { type: 'OTHER' },
+          });
+        }
+
+        if (input.isCanonical === true) {
+          await tx.url.updateMany({
+            where: { domainId: domain.id, id: { not: url.id }, isCanonical: true },
+            data: { isCanonical: false },
+          });
+        }
+
+        return url;
       });
     },
 

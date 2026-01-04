@@ -135,6 +135,7 @@ export function makeDomainsService(app) {
 
       const homepageUrls = await app.prisma.url.findMany({
         where: { domainId: { in: domainIds }, type: 'HOMEPAGE' },
+        orderBy: [{ domainId: 'asc' }, { isCanonical: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
         include: {
           crawls: {
             orderBy: [{ createdAt: 'desc' }],
@@ -148,7 +149,12 @@ export function makeDomainsService(app) {
         },
       });
 
-      const homepageByDomainId = new Map(homepageUrls.map((u) => [u.domainId, u]));
+      const homepageByDomainId = new Map();
+      for (const homepageUrl of homepageUrls) {
+        if (!homepageByDomainId.has(homepageUrl.domainId)) {
+          homepageByDomainId.set(homepageUrl.domainId, homepageUrl);
+        }
+      }
       const items = domains.map((domain) => ({
         ...domain,
         urlsCount: countByDomainId.get(domain.id) ?? 0,
@@ -238,7 +244,7 @@ export function makeDomainsService(app) {
     async getHomepageUrl(domainId) {
       return app.prisma.url.findFirst({
         where: { domainId, type: 'HOMEPAGE' },
-        orderBy: [{ createdAt: 'asc' }],
+        orderBy: [{ isCanonical: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
       });
     },
 
