@@ -30,8 +30,12 @@
   "dependencies": {
     "@fastify/cors": "^8.5.0",
     "@fastify/env": "^4.0.0",
-    "@fastify/swagger": "^8.15.0",
     "@fastify/sensible": "^5.6.0",
+    "@fastify/static": "^6.12.0",
+    "@fastify/swagger": "^8.15.0",
+    "@jverneaut/mb-pages-finder": "^0.0.2",
+    "@jverneaut/mb-screenshotter": "^0.0.3",
+    "@jverneaut/mb-technologies-finder": "^0.0.1",
     "@prisma/client": "^6.0.0",
     "@scalar/fastify-api-reference": "^1.19.1",
     "dotenv": "^16.4.7",

@@ -30,28 +30,30 @@ export function makeDomainsService(app) {
           });
         }
 
-        let initialCrawl = null;
-        if (input.createInitialCrawl && homepageUrl) {
-          initialCrawl = await tx.urlCrawl.create({
-            data: {
-              urlId: homepageUrl.id,
-              status: 'PENDING',
-              tasks: {
-                create: [
-                  { type: 'SCREENSHOT' },
-                  { type: 'TECHNOLOGIES' },
-                  { type: 'CATEGORIES' },
-                  { type: 'CONTENT' },
-                  { type: 'COLORS' },
-                ],
-              },
+      let initialCrawl = null;
+      if (input.createInitialCrawl && homepageUrl) {
+        initialCrawl = await tx.urlCrawl.create({
+          data: {
+            urlId: homepageUrl.id,
+            status: 'PENDING',
+            tasks: {
+              create: [
+                { type: 'SCREENSHOT' },
+                { type: 'TECHNOLOGIES' },
+              ],
             },
-            include: { tasks: true },
-          });
-        }
+          },
+          include: { tasks: true },
+        });
+      }
 
         return { domain, homepageUrl, initialCrawl, created: !existing };
       });
+
+      let ingestionJob = null;
+      if (input.enqueueIngestion) {
+        ingestionJob = app.services.ingestion.enqueueDomainIngestion(result.domain.id, input.ingestion ?? {});
+      }
 
       return {
         statusCode: result.created ? 201 : 200,
@@ -59,6 +61,7 @@ export function makeDomainsService(app) {
           ...result.domain,
           homepageUrl: result.homepageUrl,
           initialCrawl: result.initialCrawl,
+          ingestionJob,
         },
       };
     },

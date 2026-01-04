@@ -27,3 +27,18 @@ export function normalizeUrlInput(input) {
   };
 }
 
+function stripWww(host) {
+  return host?.toLowerCase()?.startsWith('www.') ? host.slice(4).toLowerCase() : host?.toLowerCase();
+}
+
+export function normalizeUrlForDomainHost(input, domainHost) {
+  const normalized = normalizeUrlInput(input);
+  const inputHost = stripWww(normalized.host);
+  const expectedHost = stripWww(domainHost);
+  if (inputHost !== expectedHost) {
+    throw new Error('URL host must match domain host');
+  }
+
+  const normalizedUrl = `https://${domainHost.toLowerCase()}${normalized.path === '/' ? '/' : normalized.path}`;
+  return { host: domainHost.toLowerCase(), path: normalized.path, normalizedUrl };
+}

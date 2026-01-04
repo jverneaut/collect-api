@@ -15,6 +15,20 @@ Ready: `GET /ready`
 Metrics (if enabled): `GET /metrics`  
 GraphQL (if enabled): `POST /graphql` and GraphiQL at `/graphiql`
 API Reference (if enabled): `/reference`
+Static storage (screenshots): `GET /storage/*`
+
+## Ingestion (URL discovery + crawl)
+
+The ingestion flow uses the micro-backend clients:
+
+- `MB_PAGES_FINDER_BASE_URL`
+- `MB_SCREENSHOTTER_BASE_URL`
+- `MB_TECHNOLOGIES_FINDER_BASE_URL`
+
+Trigger a run (async job):
+
+- `POST /domains/:domainId/ingest`
+- Poll job: `GET /jobs/:jobId`
 
 ## Core REST endpoints
 
@@ -24,6 +38,7 @@ API Reference (if enabled): `/reference`
 - `POST /domains/:domainId/urls`
 - `GET /domains/:domainId/urls`
 - `GET /domains/:domainId/urls/:urlId`
+- `POST /domains/:domainId/ingest` (discover URLs + crawl them)
 - `POST /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls/:crawlId`
@@ -33,6 +48,8 @@ API Reference (if enabled): `/reference`
 - `PUT /crawls/:crawlId/categories`
 - `PUT /crawls/:crawlId/technologies`
 - `GET /feed/latest-sites`
+- `GET /jobs`
+- `GET /jobs/:jobId`
 
 All responses use a consistent envelope:
 

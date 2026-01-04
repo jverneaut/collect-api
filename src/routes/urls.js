@@ -38,8 +38,8 @@ export async function urlRoutes(app) {
       },
     },
     async (request, reply) => {
-      const url = await app.services.urls.createUrlForDomain(request.params.domainId, request.body);
-      reply.code(201).ok(url);
+      const url = await app.services.urls.upsertUrlForDomain(request.params.domainId, request.body);
+      reply.code(200).ok(url);
     }
   );
 

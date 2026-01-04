@@ -6,6 +6,33 @@ const DomainInputSchema = {
     domain: { type: 'string', minLength: 1 },
     createHomepageUrl: { type: 'boolean', default: true },
     createInitialCrawl: { type: 'boolean', default: true },
+    enqueueIngestion: { type: 'boolean', default: true },
+    ingestion: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        maxUrls: { type: 'integer', minimum: 1, maximum: 200 },
+        urlConcurrency: { type: 'integer', minimum: 1, maximum: 20 },
+        screenshot: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            format: { type: 'string', enum: ['png', 'jpeg'] },
+            fullPage: { type: 'boolean' },
+            adblock: { type: 'boolean' },
+            waitMs: { type: 'integer', minimum: 0, maximum: 60000 },
+            timeoutMs: { type: 'integer', minimum: 1000, maximum: 300000 },
+          },
+        },
+        technologies: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            timeoutMs: { type: 'integer', minimum: 1000, maximum: 300000 },
+          },
+        },
+      },
+    },
   },
 };
 

@@ -1,4 +1,4 @@
-import { normalizeUrlInput } from '../lib/normalize.js';
+import { normalizeUrlForDomainHost } from '../lib/normalize.js';
 import { clampLimit, decodeCursor, encodeCursor, makeCreatedAtCursorWhere } from '../lib/pagination.js';
 
 export function makeUrlsService(app) {
@@ -11,18 +11,32 @@ export function makeUrlsService(app) {
       const domain = await app.prisma.domain.findUnique({ where: { id: domainId } });
       if (!domain) throw app.httpErrors.notFound('Domain not found');
 
-      const normalized = normalizeUrlInput(input.url);
-      if (normalized.host !== domain.host) {
-        throw app.httpErrors.badRequest('URL host must match domain host');
+      return this.upsertUrlForDomain(domain.id, input);
+    },
+
+    async upsertUrlForDomain(domainId, input) {
+      const domain = await app.prisma.domain.findUnique({ where: { id: domainId } });
+      if (!domain) throw app.httpErrors.notFound('Domain not found');
+
+      let normalized;
+      try {
+        normalized = normalizeUrlForDomainHost(input.url, domain.host);
+      } catch (error) {
+        throw app.httpErrors.badRequest(error?.message || 'Invalid URL');
       }
 
-      return app.prisma.url.create({
-        data: {
+      return app.prisma.url.upsert({
+        where: { normalizedUrl: normalized.normalizedUrl },
+        update: {
+          type: input.type ?? undefined,
+          isCanonical: input.isCanonical ?? undefined,
+        },
+        create: {
           domainId: domain.id,
           path: normalized.path,
           normalizedUrl: normalized.normalizedUrl,
-          type: input.type,
-          isCanonical: input.isCanonical,
+          type: input.type ?? 'OTHER',
+          isCanonical: input.isCanonical ?? false,
         },
       });
     },

@@ -5,7 +5,7 @@ const CreateCrawlSchema = {
     tasks: {
       type: 'array',
       items: { type: 'string', enum: ['SCREENSHOT', 'TECHNOLOGIES', 'CATEGORIES', 'CONTENT', 'COLORS'] },
-      default: ['SCREENSHOT', 'TECHNOLOGIES', 'CATEGORIES', 'CONTENT', 'COLORS'],
+      default: ['SCREENSHOT', 'TECHNOLOGIES'],
       minItems: 1,
     },
   },

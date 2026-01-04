@@ -67,6 +67,7 @@ export function makeCrawlsService(app) {
     },
 
     async patchTask(crawlId, taskType, patch) {
+      const now = new Date();
       return app.prisma.crawlTask.update({
         where: {
           crawlId_type: { crawlId, type: taskType },
@@ -74,10 +75,14 @@ export function makeCrawlsService(app) {
         data: {
           ...(patch.status ? { status: patch.status } : {}),
           ...(patch.error !== undefined ? { error: patch.error } : {}),
-          ...(patch.status === 'RUNNING' ? { startedAt: new Date() } : {}),
-          ...(patch.status === 'SUCCESS' || patch.status === 'FAILED' ? { finishedAt: new Date() } : {}),
-          lastAttemptAt: new Date(),
-          attempts: { increment: 1 },
+          ...(patch.status === 'RUNNING'
+            ? {
+                startedAt: now,
+                lastAttemptAt: now,
+                attempts: { increment: 1 },
+              }
+            : {}),
+          ...(patch.status === 'SUCCESS' || patch.status === 'FAILED' ? { finishedAt: now } : {}),
         },
       });
     },
