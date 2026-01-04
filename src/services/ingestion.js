@@ -306,7 +306,7 @@ export function makeIngestionService(app) {
               fullPage: options.screenshot?.fullPage ?? true,
               adblock: options.screenshot?.adblock ?? true,
               waitMs: options.screenshot?.waitMs ?? 500,
-              timeoutMs: options.screenshot?.timeoutMs ?? 60_000,
+              timeoutMs: options.screenshot?.timeoutMs ?? 90_000,
               signal,
             },
           );
