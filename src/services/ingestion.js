@@ -1,40 +1,48 @@
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 function stripWww(host) {
-  return host?.toLowerCase()?.startsWith('www.') ? host.slice(4).toLowerCase() : host?.toLowerCase();
+  return host?.toLowerCase()?.startsWith("www.")
+    ? host.slice(4).toLowerCase()
+    : host?.toLowerCase();
 }
 
 function guessUrlType(rawType) {
-  const value = String(rawType || '').toLowerCase();
+  const value = String(rawType || "").toLowerCase();
   const table = {
-    homepage: 'HOMEPAGE',
-    home: 'HOMEPAGE',
-    index: 'HOMEPAGE',
-    about: 'ABOUT',
-    'about-us': 'ABOUT',
-    contact: 'CONTACT',
-    'contact-us': 'CONTACT',
-    pricing: 'PRICING',
-    blog: 'BLOG',
-    careers: 'CAREERS',
-    jobs: 'CAREERS',
-    docs: 'DOCS',
-    documentation: 'DOCS',
-    terms: 'TERMS',
-    privacy: 'PRIVACY',
+    homepage: "HOMEPAGE",
+    home: "HOMEPAGE",
+    index: "HOMEPAGE",
+    about: "ABOUT",
+    "about-us": "ABOUT",
+    contact: "CONTACT",
+    "contact-us": "CONTACT",
+    pricing: "PRICING",
+    blog: "BLOG",
+    careers: "CAREERS",
+    jobs: "CAREERS",
+    docs: "DOCS",
+    documentation: "DOCS",
+    terms: "TERMS",
+    privacy: "PRIVACY",
   };
-  return table[value] || 'OTHER';
+  return table[value] || "OTHER";
 }
 
 function normalizePagesResult(result) {
-  const pages = Array.isArray(result) ? result : Array.isArray(result?.pages) ? result.pages : Array.isArray(result?.items) ? result.items : [];
+  const pages = Array.isArray(result)
+    ? result
+    : Array.isArray(result?.pages)
+      ? result.pages
+      : Array.isArray(result?.items)
+        ? result.items
+        : [];
   return pages
     .map((p) => ({
       url: p?.url || p?.href || p?.link,
       type: p?.type || p?.category || p?.pageType || p?.purpose,
     }))
-    .filter((p) => typeof p.url === 'string' && p.url.length > 0);
+    .filter((p) => typeof p.url === "string" && p.url.length > 0);
 }
 
 function clampConfidence(value) {
@@ -46,29 +54,56 @@ function clampConfidence(value) {
 }
 
 function slugify(value) {
-  return String(value || '')
+  return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 function normalizeTechnologiesResult(result) {
-  const items = Array.isArray(result) ? result : Array.isArray(result?.technologies) ? result.technologies : Array.isArray(result?.items) ? result.items : [];
+  const items = Array.isArray(result)
+    ? result
+    : Array.isArray(result?.technologies)
+      ? result.technologies
+      : Array.isArray(result?.items)
+        ? result.items
+        : [];
   return items
     .map((t) => {
       const name = t?.name || t?.technology || t?.slug || t?.id;
       const slug = slugify(t?.slug || t?.id || name);
       const websiteUrl = t?.websiteUrl || t?.website || t?.url;
-      const confidence = clampConfidence(t?.confidence || t?.confidenceScore || t?.score);
+      const confidence = clampConfidence(
+        t?.confidence || t?.confidenceScore || t?.score,
+      );
       if (!slug || !name) return null;
-      return { slug, name: String(name), websiteUrl: websiteUrl ? String(websiteUrl) : null, confidence };
+      return {
+        slug,
+        name: String(name),
+        websiteUrl: websiteUrl ? String(websiteUrl) : null,
+        confidence,
+      };
     })
     .filter(Boolean);
 }
 
+function normalizeTechnologiesScope(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (
+    ["per_url", "per-url", "perurl", "url", "urls", "all"].includes(normalized)
+  )
+    return "PER_URL";
+  return "HOMEPAGE";
+}
+
 function isShopifyFromTechnologies(technologies) {
-  return technologies.some((t) => t.slug === 'shopify' || String(t.name).toLowerCase().includes('shopify'));
+  return technologies.some(
+    (t) =>
+      t.slug === "shopify" || String(t.name).toLowerCase().includes("shopify"),
+  );
 }
 
 function pickTechnologiesForPagesFinder(technologies, limit = 50) {
@@ -77,10 +112,10 @@ function pickTechnologiesForPagesFinder(technologies, limit = 50) {
 }
 
 function extensionForContentType(contentType) {
-  const value = String(contentType || '').toLowerCase();
-  if (value.includes('png')) return 'png';
-  if (value.includes('jpeg') || value.includes('jpg')) return 'jpg';
-  return 'bin';
+  const value = String(contentType || "").toLowerCase();
+  if (value.includes("png")) return "png";
+  if (value.includes("jpeg") || value.includes("jpg")) return "jpg";
+  return "bin";
 }
 
 async function runWithLimit(limit, items, worker) {
@@ -112,52 +147,87 @@ export function makeIngestionService(app) {
   return {
     async ingestDomain(domainId, options, { update, signal, crawlRunId } = {}) {
       const domain = await app.services.domains.getDomainEntity(domainId);
-      if (!domain) throw app.httpErrors.notFound('Domain not found');
+      if (!domain) throw app.httpErrors.notFound("Domain not found");
 
       const maxUrls = Math.max(1, Math.min(Number(options.maxUrls ?? 20), 200));
-      const urlConcurrency = Math.max(1, Math.min(Number(options.urlConcurrency ?? 3), 20));
+      const urlConcurrency = Math.max(
+        1,
+        Math.min(Number(options.urlConcurrency ?? 3), 20),
+      );
+
+      const technologiesScope = normalizeTechnologiesScope(
+        options.technologies?.scope,
+      );
 
       let discoveryTechnologies = [];
-      let isShopify = options.isShopify === true || options.isShopify === false ? options.isShopify : null;
+      let discoveryTechnologiesError = null;
+      let isShopify =
+        options.isShopify === true || options.isShopify === false
+          ? options.isShopify
+          : null;
 
-      if (isShopify === null) {
-        update({ progress: { stage: 'detecting_technologies_for_discovery' } });
+      const shouldDetectTechnologiesForDiscovery =
+        technologiesScope === "HOMEPAGE" || isShopify === null;
+      if (shouldDetectTechnologiesForDiscovery) {
+        update({ progress: { stage: "detecting_technologies_for_discovery" } });
         try {
-          const raw = await app.mb.technologiesFinder.technologies(domain.canonicalUrl, {
-            fast: true,
-            recursive: false,
-            maxDepth: 1,
-            maxUrls: 3,
-            timeoutMs: options.technologies?.timeoutMs ?? 60_000,
-            signal,
-          });
+          const raw = await app.mb.technologiesFinder.technologies(
+            domain.canonicalUrl,
+            {
+              fast: true,
+              recursive: false,
+              maxDepth: 1,
+              maxUrls: 3,
+              timeoutMs: options.technologies?.timeoutMs ?? 60_000,
+              signal,
+            },
+          );
           discoveryTechnologies = normalizeTechnologiesResult(raw);
-          isShopify = isShopifyFromTechnologies(discoveryTechnologies);
         } catch (error) {
-          isShopify = false;
+          discoveryTechnologiesError = error;
+          if (isShopify === null) isShopify = false;
           update({
             progress: {
-              stage: 'detecting_technologies_for_discovery_failed',
-              error: error?.message || 'Failed to detect technologies for discovery',
+              stage: "detecting_technologies_for_discovery_failed",
+              error:
+                error?.message || "Failed to detect technologies for discovery",
             },
           });
         }
+
+        if (isShopify === null && !discoveryTechnologiesError) {
+          isShopify = isShopifyFromTechnologies(discoveryTechnologies);
+        }
       }
 
-      const technologiesForPagesFinder = pickTechnologiesForPagesFinder(discoveryTechnologies);
+      const technologiesForPagesFinder = pickTechnologiesForPagesFinder(
+        discoveryTechnologies,
+      );
 
-      update({ progress: { stage: 'discovering_pages', isShopify, technologies: technologiesForPagesFinder.length } });
+      update({
+        progress: {
+          stage: "discovering_pages",
+          isShopify,
+          technologies: technologiesForPagesFinder.length,
+        },
+      });
 
       const pagesRaw = await app.mb.pagesFinder.pages(domain.canonicalUrl, {
         isShopify,
-        technologies: technologiesForPagesFinder.length ? technologiesForPagesFinder : undefined,
+        technologies: technologiesForPagesFinder.length
+          ? technologiesForPagesFinder
+          : undefined,
         signal,
       });
       const pages = normalizePagesResult(pagesRaw);
 
-      const withHomepage = pages.some((p) => stripWww(new URL(p.url).host) === stripWww(domain.host) && new URL(p.url).pathname === '/')
+      const withHomepage = pages.some(
+        (p) =>
+          stripWww(new URL(p.url).host) === stripWww(domain.host) &&
+          new URL(p.url).pathname === "/",
+      )
         ? pages
-        : [{ url: domain.canonicalUrl, type: 'homepage' }, ...pages];
+        : [{ url: domain.canonicalUrl, type: "homepage" }, ...pages];
 
       const filtered = withHomepage
         .filter((p) => {
@@ -166,7 +236,9 @@ export function makeIngestionService(app) {
         })
         .slice(0, maxUrls);
 
-      update({ progress: { stage: 'upserting_urls', discoveredUrls: filtered.length } });
+      update({
+        progress: { stage: "upserting_urls", discoveredUrls: filtered.length },
+      });
 
       const urls = [];
       for (const page of filtered) {
@@ -174,40 +246,85 @@ export function makeIngestionService(app) {
         const url = await app.services.urls.upsertUrlForDomain(domain.id, {
           url: page.url,
           type,
-          isCanonical: type === 'HOMEPAGE',
+          isCanonical: type === "HOMEPAGE",
         });
         urls.push(url);
       }
 
-      update({ progress: { stage: 'crawling_urls', urls: urls.length } });
+      update({ progress: { stage: "crawling_urls", urls: urls.length } });
 
-      const homepageUrl = urls.find((u) => u.type === 'HOMEPAGE') ?? null;
+      const homepageUrl = urls.find((u) => u.type === "HOMEPAGE") ?? null;
+
+      let sharedTechnologyIdsBySlug = null;
+      if (technologiesScope === "HOMEPAGE" && discoveryTechnologies.length) {
+        sharedTechnologyIdsBySlug = await app.prisma.$transaction(
+          async (tx) => {
+            const map = new Map();
+            for (const tech of discoveryTechnologies) {
+              const technology = await tx.technology.upsert({
+                where: { slug: tech.slug },
+                update: {
+                  name: tech.name,
+                  websiteUrl: tech.websiteUrl ?? undefined,
+                },
+                create: {
+                  slug: tech.slug,
+                  name: tech.name,
+                  websiteUrl: tech.websiteUrl ?? undefined,
+                },
+              });
+              map.set(tech.slug, technology.id);
+            }
+            return map;
+          },
+        );
+      }
+
       const precomputedTechnologiesByUrlId = new Map();
-      if (homepageUrl && discoveryTechnologies.length) {
-        precomputedTechnologiesByUrlId.set(homepageUrl.id, discoveryTechnologies);
+      if (
+        technologiesScope === "PER_URL" &&
+        homepageUrl &&
+        discoveryTechnologies.length
+      ) {
+        precomputedTechnologiesByUrlId.set(
+          homepageUrl.id,
+          discoveryTechnologies,
+        );
       }
 
       const results = await runWithLimit(urlConcurrency, urls, async (url) => {
         const crawl = await app.services.crawls.createCrawl(url.id, {
-          tasks: ['SCREENSHOT', 'TECHNOLOGIES'],
+          tasks: ["SCREENSHOT", "TECHNOLOGIES"],
           crawlRunId,
         });
 
-        await app.services.crawls.patchCrawl(crawl.id, { status: 'RUNNING', startedAt: new Date().toISOString() });
+        await app.services.crawls.patchCrawl(crawl.id, {
+          status: "RUNNING",
+          startedAt: new Date().toISOString(),
+        });
 
         const screenshotPromise = (async () => {
-          await app.services.crawls.patchTask(crawl.id, 'SCREENSHOT', { status: 'RUNNING' });
-          const { buffer, contentType } = await app.mb.screenshotter.screenshot(url.normalizedUrl, {
-            format: options.screenshot?.format ?? 'png',
-            fullPage: options.screenshot?.fullPage ?? true,
-            adblock: options.screenshot?.adblock ?? true,
-            waitMs: options.screenshot?.waitMs ?? 500,
-            timeoutMs: options.screenshot?.timeoutMs ?? 60_000,
-            signal,
+          await app.services.crawls.patchTask(crawl.id, "SCREENSHOT", {
+            status: "RUNNING",
           });
+          const { buffer, contentType } = await app.mb.screenshotter.screenshot(
+            url.normalizedUrl,
+            {
+              format: options.screenshot?.format ?? "png",
+              fullPage: options.screenshot?.fullPage ?? true,
+              adblock: options.screenshot?.adblock ?? true,
+              waitMs: options.screenshot?.waitMs ?? 500,
+              timeoutMs: options.screenshot?.timeoutMs ?? 60_000,
+              signal,
+            },
+          );
 
           const ext = extensionForContentType(contentType);
-          const storageKey = path.posix.join('screenshots', domain.host, `${crawl.id}.${ext}`);
+          const storageKey = path.posix.join(
+            "screenshots",
+            domain.host,
+            `${crawl.id}.${ext}`,
+          );
           const absolutePath = app.storage.toAbsolutePath(storageKey);
           await mkdir(path.dirname(absolutePath), { recursive: true });
           await writeFile(absolutePath, buffer);
@@ -215,86 +332,156 @@ export function makeIngestionService(app) {
           const screenshot = await app.prisma.screenshot.create({
             data: {
               crawlId: crawl.id,
-              kind: 'FULL_PAGE',
+              kind: "FULL_PAGE",
               format: ext,
               storageKey,
               publicUrl: app.storage.toPublicUrl(storageKey),
             },
           });
 
-          await app.services.crawls.patchTask(crawl.id, 'SCREENSHOT', { status: 'SUCCESS' });
+          await app.services.crawls.patchTask(crawl.id, "SCREENSHOT", {
+            status: "SUCCESS",
+          });
           return screenshot;
         })();
 
         const technologiesPromise = (async () => {
-          await app.services.crawls.patchTask(crawl.id, 'TECHNOLOGIES', { status: 'RUNNING' });
+          await app.services.crawls.patchTask(crawl.id, "TECHNOLOGIES", {
+            status: "RUNNING",
+          });
+          if (technologiesScope === "HOMEPAGE") {
+            if (discoveryTechnologiesError) throw discoveryTechnologiesError;
+
+            await app.prisma.$transaction(async (tx) => {
+              await tx.crawlTechnology.deleteMany({
+                where: { crawlId: crawl.id },
+              });
+              for (const tech of discoveryTechnologies) {
+                const technologyId = sharedTechnologyIdsBySlug?.get(tech.slug);
+                const resolvedTechnologyId =
+                  technologyId ??
+                  (
+                    await tx.technology.upsert({
+                      where: { slug: tech.slug },
+                      update: {
+                        name: tech.name,
+                        websiteUrl: tech.websiteUrl ?? undefined,
+                      },
+                      create: {
+                        slug: tech.slug,
+                        name: tech.name,
+                        websiteUrl: tech.websiteUrl ?? undefined,
+                      },
+                    })
+                  ).id;
+
+                await tx.crawlTechnology.create({
+                  data: {
+                    crawlId: crawl.id,
+                    technologyId: resolvedTechnologyId,
+                    confidence: tech.confidence ?? undefined,
+                  },
+                });
+              }
+            });
+
+            await app.services.crawls.patchTask(crawl.id, "TECHNOLOGIES", {
+              status: "SUCCESS",
+            });
+            return discoveryTechnologies.length;
+          }
+
           const precomputed = precomputedTechnologiesByUrlId.get(url.id);
-          const technologies = precomputed
-            ? precomputed
-            : normalizeTechnologiesResult(
-                await app.mb.technologiesFinder.technologies(url.normalizedUrl, {
-                  timeoutMs: options.technologies?.timeoutMs ?? 60_000,
-                  signal,
-                })
-              );
+          const technologies =
+            precomputed ??
+            normalizeTechnologiesResult(
+              await app.mb.technologiesFinder.technologies(url.normalizedUrl, {
+                timeoutMs: options.technologies?.timeoutMs ?? 60_000,
+                signal,
+              }),
+            );
 
           await app.prisma.$transaction(async (tx) => {
-            await tx.crawlTechnology.deleteMany({ where: { crawlId: crawl.id } });
+            await tx.crawlTechnology.deleteMany({
+              where: { crawlId: crawl.id },
+            });
             for (const tech of technologies) {
               const technology = await tx.technology.upsert({
                 where: { slug: tech.slug },
-                update: { name: tech.name, websiteUrl: tech.websiteUrl ?? undefined },
-                create: { slug: tech.slug, name: tech.name, websiteUrl: tech.websiteUrl ?? undefined },
+                update: {
+                  name: tech.name,
+                  websiteUrl: tech.websiteUrl ?? undefined,
+                },
+                create: {
+                  slug: tech.slug,
+                  name: tech.name,
+                  websiteUrl: tech.websiteUrl ?? undefined,
+                },
               });
               await tx.crawlTechnology.create({
-                data: { crawlId: crawl.id, technologyId: technology.id, confidence: tech.confidence ?? undefined },
+                data: {
+                  crawlId: crawl.id,
+                  technologyId: technology.id,
+                  confidence: tech.confidence ?? undefined,
+                },
               });
             }
           });
 
-          await app.services.crawls.patchTask(crawl.id, 'TECHNOLOGIES', { status: 'SUCCESS' });
+          await app.services.crawls.patchTask(crawl.id, "TECHNOLOGIES", {
+            status: "SUCCESS",
+          });
           return technologies.length;
         })();
 
-        const [screenshotResult, technologiesResult] = await Promise.allSettled([
-          screenshotPromise,
-          technologiesPromise,
-        ]);
+        const [screenshotResult, technologiesResult] = await Promise.allSettled(
+          [screenshotPromise, technologiesPromise],
+        );
 
         const errors = [];
-        const screenshotOk = screenshotResult.status === 'fulfilled';
-        const technologiesOk = technologiesResult.status === 'fulfilled';
+        const screenshotOk = screenshotResult.status === "fulfilled";
+        const technologiesOk = technologiesResult.status === "fulfilled";
 
         if (!screenshotOk) {
-          errors.push(`screenshot: ${screenshotResult.reason?.message || 'failed'}`);
-          await app.services.crawls.patchTask(crawl.id, 'SCREENSHOT', {
-            status: 'FAILED',
-            error: screenshotResult.reason?.message || 'Screenshot failed',
+          errors.push(
+            `screenshot: ${screenshotResult.reason?.message || "failed"}`,
+          );
+          await app.services.crawls.patchTask(crawl.id, "SCREENSHOT", {
+            status: "FAILED",
+            error: screenshotResult.reason?.message || "Screenshot failed",
           });
         }
 
         if (!technologiesOk) {
-          errors.push(`technologies: ${technologiesResult.reason?.message || 'failed'}`);
-          await app.services.crawls.patchTask(crawl.id, 'TECHNOLOGIES', {
-            status: 'FAILED',
-            error: technologiesResult.reason?.message || 'Technologies detection failed',
+          errors.push(
+            `technologies: ${technologiesResult.reason?.message || "failed"}`,
+          );
+          await app.services.crawls.patchTask(crawl.id, "TECHNOLOGIES", {
+            status: "FAILED",
+            error:
+              technologiesResult.reason?.message ||
+              "Technologies detection failed",
           });
         }
 
-        const crawlStatus = screenshotOk ? 'SUCCESS' : 'FAILED';
+        const crawlStatus = screenshotOk ? "SUCCESS" : "FAILED";
         await app.services.crawls.patchCrawl(crawl.id, {
           status: crawlStatus,
           finishedAt: new Date().toISOString(),
           crawledAt: new Date().toISOString(),
           finalUrl: url.normalizedUrl,
-          error: errors.length ? errors.join('; ') : undefined,
+          error: errors.length ? errors.join("; ") : undefined,
         });
 
         return { urlId: url.id, crawlId: crawl.id, status: crawlStatus };
       });
 
-      update({ progress: { stage: 'done', crawledUrls: results.length } });
-      return { domainId: domain.id, urlsCreatedOrUpdated: urls.length, crawls: results };
+      update({ progress: { stage: "done", crawledUrls: results.length } });
+      return {
+        domainId: domain.id,
+        urlsCreatedOrUpdated: urls.length,
+        crawls: results,
+      };
     },
   };
 }

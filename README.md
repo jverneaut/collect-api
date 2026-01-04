@@ -36,6 +36,11 @@ Shopify hint:
 - If you pass `{ "isShopify": true }` to ingestion, the API forwards it to the pages-finder to discover Shopify-specific pages.
 - If omitted, the API tries to detect Shopify from an initial technologies scan of the homepage and forwards `isShopify` automatically.
 
+Technologies scope:
+
+- By default, technologies are detected once from the homepage and copied to every crawled URL (faster and matches most sites).
+- To detect technologies per URL, pass `{ "technologies": { "scope": "per_url" } }`.
+
 ## Core REST endpoints
 
 - `POST /domains`
@@ -62,7 +67,12 @@ Shopify hint:
 All responses use a consistent envelope:
 
 ```json
-{ "ok": true, "data": { /* ... */ } }
+{
+  "ok": true,
+  "data": {
+    /* ... */
+  }
+}
 ```
 
 Errors:
