@@ -9,8 +9,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:init": "sqlite3 prisma/dev.db < prisma/sqlite-init.sql",
+    "db:migrate": "node scripts/migrate-sqlite.js",
+    "db:reset": "node scripts/reset-db.js && npm run db:init",
     "seed": "node scripts/seed.js",
-    "db:setup": "npm run db:init && npm run seed",
+    "db:setup": "npm run db:reset && npm run seed",
     "prisma:studio": "prisma studio",
     "format": "prettier -w .",
     "test": "node -e \"console.log('no tests')\""

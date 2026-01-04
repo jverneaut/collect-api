@@ -18,6 +18,7 @@ model Domain {
 
   urls    Url[]
   profile DomainProfile?
+  crawlRuns CrawlRun[]
 }
 
 model DomainProfile {
@@ -33,6 +34,27 @@ model DomainProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CrawlRun {
+  id       String @id @default(cuid())
+  domainId String
+  domain   Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  status    String @default("PENDING")
+  jobId     String?
+  startedAt DateTime?
+  finishedAt DateTime?
+  error      String?
+  optionsJson String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crawls UrlCrawl[]
+
+  @@index([domainId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Url {
@@ -57,6 +79,8 @@ model UrlCrawl {
   id     String @id @default(cuid())
   urlId  String
   url    Url    @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  crawlRunId String?
+  crawlRun   CrawlRun? @relation(fields: [crawlRunId], references: [id], onDelete: SetNull)
 
   status    String @default("PENDING")
   startedAt DateTime?
@@ -79,7 +103,9 @@ model UrlCrawl {
   categories    CrawlCategory[]
   technologies  CrawlTechnology[]
 
+  @@unique([crawlRunId, urlId])
   @@index([urlId, createdAt])
+  @@index([crawlRunId, createdAt])
   @@index([status, createdAt])
 }
 

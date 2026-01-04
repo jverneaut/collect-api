@@ -51,8 +51,11 @@ export function makeDomainsService(app) {
       });
 
       let ingestionJob = null;
+      let ingestionCrawlRun = null;
       if (input.enqueueIngestion) {
-        ingestionJob = app.services.ingestion.enqueueDomainIngestion(result.domain.id, input.ingestion ?? {});
+        const requested = await app.services.crawlRuns.requestDomainCrawlRun(result.domain.id, input.ingestion ?? {});
+        ingestionJob = requested.job;
+        ingestionCrawlRun = requested.crawlRun;
       }
 
       return {
@@ -62,6 +65,7 @@ export function makeDomainsService(app) {
           homepageUrl: result.homepageUrl,
           initialCrawl: result.initialCrawl,
           ingestionJob,
+          ingestionCrawlRun,
         },
       };
     },

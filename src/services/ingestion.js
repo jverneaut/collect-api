@@ -110,16 +110,7 @@ async function runWithLimit(limit, items, worker) {
 
 export function makeIngestionService(app) {
   return {
-    enqueueDomainIngestion(domainId, options = {}) {
-      return app.jobs.enqueue(
-        { type: 'DOMAIN_INGESTION', input: { domainId, options } },
-        async ({ update, signal }) => {
-          return this.ingestDomain(domainId, options, { update, signal });
-        }
-      );
-    },
-
-    async ingestDomain(domainId, options, { update, signal }) {
+    async ingestDomain(domainId, options, { update, signal, crawlRunId } = {}) {
       const domain = await app.services.domains.getDomainEntity(domainId);
       if (!domain) throw app.httpErrors.notFound('Domain not found');
 
@@ -199,6 +190,7 @@ export function makeIngestionService(app) {
       const results = await runWithLimit(urlConcurrency, urls, async (url) => {
         const crawl = await app.services.crawls.createCrawl(url.id, {
           tasks: ['SCREENSHOT', 'TECHNOLOGIES'],
+          crawlRunId,
         });
 
         await app.services.crawls.patchCrawl(crawl.id, { status: 'RUNNING', startedAt: new Date().toISOString() });

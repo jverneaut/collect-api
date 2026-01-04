@@ -23,6 +23,7 @@ import { taxonomyRoutes } from './routes/taxonomies.js';
 import { feedRoutes } from './routes/feed.js';
 import { ingestionRoutes } from './routes/ingestion.js';
 import { jobsRoutes } from './routes/jobs.js';
+import { crawlRunRoutes } from './routes/crawl-runs.js';
 
 export async function buildApp(options = {}) {
   const app = Fastify({
@@ -54,6 +55,7 @@ export async function buildApp(options = {}) {
   await app.register(taxonomyRoutes);
   await app.register(feedRoutes);
   await app.register(ingestionRoutes);
+  await app.register(crawlRunRoutes);
   await app.register(jobsRoutes);
 
   return app;

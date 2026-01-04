@@ -6,9 +6,9 @@ Fastify + Prisma API for Collect.Design domains, URLs and crawl timelines.
 
 1. Create `.env` from `.env.example` (SQLite uses `file:./dev.db`, relative to `prisma/schema.prisma`)
 2. Install deps: `npm install`
-3. Init DB (SQLite): `npm run db:init`
+3. Init DB (SQLite): `npm run db:init` (existing DB upgrades: `npm run db:migrate`, reset: `npm run db:reset`)
 4. Seed dev data: `npm run seed` (refuses to run with `NODE_ENV=production`)
-4. Start: `npm run dev`
+5. Start: `npm run dev`
 
 Health: `GET /health`  
 Ready: `GET /ready`  
@@ -29,6 +29,7 @@ Trigger a run (async job):
 
 - `POST /domains/:domainId/ingest`
 - Poll job: `GET /jobs/:jobId`
+- List crawl runs for a domain: `GET /domains/:domainId/crawl-runs`
 
 Shopify hint:
 
@@ -44,6 +45,8 @@ Shopify hint:
 - `GET /domains/:domainId/urls`
 - `GET /domains/:domainId/urls/:urlId`
 - `POST /domains/:domainId/ingest` (discover URLs + crawl them)
+- `GET /domains/:domainId/crawl-runs` (domain-level crawl requests)
+- `GET /crawl-runs/:crawlRunId`
 - `POST /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls`
 - `GET /urls/:urlId/crawls/:crawlId`

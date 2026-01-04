@@ -7,6 +7,7 @@ export function makeCrawlsService(app) {
       return app.prisma.urlCrawl.create({
         data: {
           urlId: url.id,
+          crawlRunId: input.crawlRunId ?? undefined,
           status: 'PENDING',
           tasks: { create: input.tasks.map((type) => ({ type })) },
         },

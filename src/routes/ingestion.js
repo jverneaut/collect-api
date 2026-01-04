@@ -45,8 +45,8 @@ export async function ingestionRoutes(app) {
       },
     },
     async (request, reply) => {
-      const job = app.services.ingestion.enqueueDomainIngestion(request.params.domainId, request.body ?? {});
-      reply.code(202).ok(job);
+      const result = await app.services.crawlRuns.requestDomainCrawlRun(request.params.domainId, request.body ?? {});
+      reply.code(202).ok(result);
     }
   );
 }

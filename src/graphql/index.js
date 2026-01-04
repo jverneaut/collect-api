@@ -22,6 +22,13 @@ export function makeGraphqlSchema() {
       FAILED
     }
 
+    enum CrawlRunStatus {
+      PENDING
+      RUNNING
+      SUCCESS
+      FAILED
+    }
+
     enum TaskStatus {
       PENDING
       RUNNING
@@ -56,7 +63,21 @@ export function makeGraphqlSchema() {
       technologies: [Technology!]!
       homepageScreenshot: Screenshot
       profile: DomainProfile
+      crawlRuns(limit: Int = 30, status: CrawlRunStatus): [CrawlRun!]!
       urls(type: UrlType, limit: Int = 50): [Url!]!
+    }
+
+    type CrawlRun {
+      id: ID!
+      domainId: ID!
+      status: CrawlRunStatus!
+      jobId: String
+      startedAt: DateTime
+      finishedAt: DateTime
+      error: String
+      optionsJson: JSON
+      createdAt: DateTime!
+      updatedAt: DateTime!
     }
 
     type DomainProfile {
@@ -82,12 +103,14 @@ export function makeGraphqlSchema() {
       createdAt: DateTime!
       updatedAt: DateTime!
       latestCrawl(status: CrawlStatus): UrlCrawl
+      crawlInRun(runId: ID!): UrlCrawl
       crawls(limit: Int = 20): [UrlCrawl!]!
     }
 
     type UrlCrawl {
       id: ID!
       urlId: ID!
+      crawlRunId: ID
       status: CrawlStatus!
       startedAt: DateTime
       finishedAt: DateTime
@@ -241,6 +264,12 @@ export function makeGraphqlResolvers(app) {
       technologies: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).technologies,
       homepageScreenshot: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).screenshot,
       profile: async (domain) => app.services.domains.getProfile(domain.id),
+      crawlRuns: async (domain, args) =>
+        app.prisma.crawlRun.findMany({
+          where: { domainId: domain.id, ...(args.status ? { status: args.status } : {}) },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: Math.max(1, Math.min(args.limit ?? 30, 200)),
+        }),
       urls: async (domain, args) =>
         app.services.urls.listUrlsForDomain(domain.id, {
           type: args.type ?? undefined,
@@ -265,9 +294,30 @@ export function makeGraphqlResolvers(app) {
         }
       },
     },
+    CrawlRun: {
+      optionsJson: (crawlRun) => {
+        if (!crawlRun.optionsJson) return null;
+        try {
+          return JSON.parse(crawlRun.optionsJson);
+        } catch {
+          return crawlRun.optionsJson;
+        }
+      },
+    },
     Url: {
       latestCrawl: async (url, args) =>
         app.services.crawls.getLatestCrawlForUrl(url.id, { status: args.status ?? undefined }),
+      crawlInRun: async (url, args) =>
+        app.prisma.urlCrawl.findFirst({
+          where: { urlId: url.id, crawlRunId: args.runId },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          include: {
+            tasks: true,
+            screenshots: { orderBy: [{ createdAt: 'desc' }] },
+            categories: { include: { category: true } },
+            technologies: { include: { technology: true } },
+          },
+        }),
       crawls: async (url, args) => {
         const result = await app.services.urls.listUrlCrawls(url.id, { limit: args.limit ?? 20 });
         return result.items;

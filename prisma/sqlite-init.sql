@@ -21,6 +21,23 @@ CREATE TABLE IF NOT EXISTS DomainProfile (
   FOREIGN KEY (domainId) REFERENCES Domain(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS CrawlRun (
+  id TEXT PRIMARY KEY NOT NULL,
+  domainId TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  jobId TEXT,
+  startedAt DATETIME,
+  finishedAt DATETIME,
+  error TEXT,
+  optionsJson TEXT,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (domainId) REFERENCES Domain(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS CrawlRun_domainId_createdAt_idx ON CrawlRun(domainId, createdAt);
+CREATE INDEX IF NOT EXISTS CrawlRun_status_createdAt_idx ON CrawlRun(status, createdAt);
+
 CREATE TABLE IF NOT EXISTS Url (
   id TEXT PRIMARY KEY NOT NULL,
   domainId TEXT NOT NULL,
@@ -39,6 +56,7 @@ CREATE INDEX IF NOT EXISTS Url_domainId_type_idx ON Url(domainId, type);
 CREATE TABLE IF NOT EXISTS UrlCrawl (
   id TEXT PRIMARY KEY NOT NULL,
   urlId TEXT NOT NULL,
+  crawlRunId TEXT,
   status TEXT NOT NULL DEFAULT 'PENDING',
   startedAt DATETIME,
   finishedAt DATETIME,
@@ -52,10 +70,13 @@ CREATE TABLE IF NOT EXISTS UrlCrawl (
   error TEXT,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (urlId) REFERENCES Url(id) ON DELETE CASCADE
+  FOREIGN KEY (urlId) REFERENCES Url(id) ON DELETE CASCADE,
+  FOREIGN KEY (crawlRunId) REFERENCES CrawlRun(id) ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS UrlCrawl_crawlRunId_urlId_unique ON UrlCrawl(crawlRunId, urlId);
 CREATE INDEX IF NOT EXISTS UrlCrawl_urlId_createdAt_idx ON UrlCrawl(urlId, createdAt);
+CREATE INDEX IF NOT EXISTS UrlCrawl_crawlRunId_createdAt_idx ON UrlCrawl(crawlRunId, createdAt);
 CREATE INDEX IF NOT EXISTS UrlCrawl_status_createdAt_idx ON UrlCrawl(status, createdAt);
 
 CREATE TABLE IF NOT EXISTS CrawlTask (
@@ -130,4 +151,3 @@ CREATE TABLE IF NOT EXISTS CrawlTechnology (
 );
 
 CREATE INDEX IF NOT EXISTS CrawlTechnology_technologyId_idx ON CrawlTechnology(technologyId);
-
