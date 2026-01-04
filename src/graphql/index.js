@@ -49,6 +49,12 @@ export function makeGraphqlSchema() {
       displayName: String
       createdAt: DateTime!
       updatedAt: DateTime!
+      urlsCount: Int!
+      homepageUrl: Url
+      primaryCategory: Category
+      categories: [Category!]!
+      technologies: [Technology!]!
+      homepageScreenshot: Screenshot
       profile: DomainProfile
       urls(type: UrlType, limit: Int = 50): [Url!]!
     }
@@ -168,6 +174,27 @@ export function makeGraphqlSchema() {
 }
 
 export function makeGraphqlResolvers(app) {
+  const getDomainHomepageUrl = async (ctx, domainId) => {
+    if (ctx.domainHomepageUrlCache.has(domainId)) return ctx.domainHomepageUrlCache.get(domainId);
+    const value = await app.services.domains.getHomepageUrl(domainId);
+    ctx.domainHomepageUrlCache.set(domainId, value);
+    return value;
+  };
+
+  const getDomainDerived = async (ctx, domainId) => {
+    if (ctx.domainDerivedCache.has(domainId)) return ctx.domainDerivedCache.get(domainId);
+    const value = await app.services.domains.getDerivedFromHomepage(domainId, { preferStatus: 'SUCCESS' });
+    ctx.domainDerivedCache.set(domainId, value);
+    return value;
+  };
+
+  const getDomainUrlsCount = async (ctx, domainId) => {
+    if (ctx.domainUrlsCountCache.has(domainId)) return ctx.domainUrlsCountCache.get(domainId);
+    const value = await app.prisma.url.count({ where: { domainId } });
+    ctx.domainUrlsCountCache.set(domainId, value);
+    return value;
+  };
+
   return {
     JSON: {
       __parseValue: (v) => v,
@@ -206,6 +233,13 @@ export function makeGraphqlResolvers(app) {
       },
     },
     Domain: {
+      urlsCount: async (domain, _args, ctx) =>
+        typeof domain.urlsCount === 'number' ? domain.urlsCount : getDomainUrlsCount(ctx, domain.id),
+      homepageUrl: async (domain, _args, ctx) => getDomainHomepageUrl(ctx, domain.id),
+      primaryCategory: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).primaryCategory,
+      categories: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).categories,
+      technologies: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).technologies,
+      homepageScreenshot: async (domain, _args, ctx) => (await getDomainDerived(ctx, domain.id)).screenshot,
       profile: async (domain) => app.services.domains.getProfile(domain.id),
       urls: async (domain, args) =>
         app.services.urls.listUrlsForDomain(domain.id, {

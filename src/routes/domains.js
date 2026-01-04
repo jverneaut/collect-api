@@ -27,7 +27,9 @@ const GetQuerySchema = {
     includeUrls: { type: 'boolean', default: true },
     includeLatestCrawls: { type: 'boolean', default: true },
     includeProfile: { type: 'boolean', default: true },
+    includeDerived: { type: 'boolean', default: true },
     latestCrawlStatus: { type: 'string', enum: ['ANY', 'SUCCESS'], default: 'ANY' },
+    derivedPreferStatus: { type: 'string', enum: ['ANY', 'SUCCESS'], default: 'SUCCESS' },
   },
 };
 

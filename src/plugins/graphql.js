@@ -8,7 +8,12 @@ export const graphqlPlugin = fp(async (app) => {
   await app.register(mercurius, {
     schema: makeGraphqlSchema(),
     resolvers: makeGraphqlResolvers(app),
+    context: (request) => ({
+      request,
+      domainDerivedCache: new Map(),
+      domainUrlsCountCache: new Map(),
+      domainHomepageUrlCache: new Map(),
+    }),
     graphiql: app.config.NODE_ENV !== 'production',
   });
 });
-

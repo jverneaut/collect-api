@@ -88,10 +88,28 @@ export function makeDomainsService(app) {
           : null;
 
       if (!query.includeHomepage || domains.length === 0) {
-        return { items: domains, nextCursor };
+        const domainIds = domains.map((d) => d.id);
+        const counts = await app.prisma.url.groupBy({
+          by: ['domainId'],
+          where: { domainId: { in: domainIds } },
+          _count: { _all: true },
+        });
+
+        const countByDomainId = new Map(counts.map((row) => [row.domainId, row._count._all]));
+        return {
+          items: domains.map((d) => ({ ...d, urlsCount: countByDomainId.get(d.id) ?? 0 })),
+          nextCursor,
+        };
       }
 
       const domainIds = domains.map((d) => d.id);
+      const counts = await app.prisma.url.groupBy({
+        by: ['domainId'],
+        where: { domainId: { in: domainIds } },
+        _count: { _all: true },
+      });
+      const countByDomainId = new Map(counts.map((row) => [row.domainId, row._count._all]));
+
       const homepageUrls = await app.prisma.url.findMany({
         where: { domainId: { in: domainIds }, type: 'HOMEPAGE' },
         include: {
@@ -110,6 +128,7 @@ export function makeDomainsService(app) {
       const homepageByDomainId = new Map(homepageUrls.map((u) => [u.domainId, u]));
       const items = domains.map((domain) => ({
         ...domain,
+        urlsCount: countByDomainId.get(domain.id) ?? 0,
         homepage: homepageByDomainId.get(domain.id) ?? null,
       }));
 
@@ -121,9 +140,16 @@ export function makeDomainsService(app) {
       if (!domain) throw app.httpErrors.notFound('Domain not found');
 
       const response = { ...domain };
+      response.urlsCount = await app.prisma.url.count({ where: { domainId: domain.id } });
 
       if (options.includeProfile) {
         response.profile = await app.prisma.domainProfile.findUnique({ where: { domainId: domain.id } });
+      }
+
+      if (options.includeDerived) {
+        response.derived = await this.getDerivedFromHomepage(domain.id, {
+          preferStatus: options.derivedPreferStatus,
+        });
       }
 
       if (options.includeUrls) {
@@ -152,6 +178,49 @@ export function makeDomainsService(app) {
       }
 
       return response;
+    },
+
+    async getHomepageUrl(domainId) {
+      return app.prisma.url.findFirst({
+        where: { domainId, type: 'HOMEPAGE' },
+        orderBy: [{ createdAt: 'asc' }],
+      });
+    },
+
+    async getDerivedFromHomepage(domainId, { preferStatus = 'SUCCESS' } = {}) {
+      const homepage = await this.getHomepageUrl(domainId);
+      if (!homepage) {
+        return {
+          homepageUrl: null,
+          homepageLatestCrawl: null,
+          primaryCategory: null,
+          categories: [],
+          technologies: [],
+          screenshot: null,
+        };
+      }
+
+      const crawl =
+        preferStatus === 'SUCCESS'
+          ? await app.services.crawls.getLatestCrawlForUrl(homepage.id, { status: 'SUCCESS' })
+          : await app.services.crawls.getLatestCrawlForUrl(homepage.id);
+
+      const categories = crawl?.categories?.map((c) => c.category).filter(Boolean) ?? [];
+      const technologies = crawl?.technologies?.map((t) => t.technology).filter(Boolean) ?? [];
+
+      const primaryCategory =
+        crawl?.categories?.slice().sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0]?.category ?? null;
+
+      const screenshot = crawl?.screenshots?.slice().sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
+
+      return {
+        homepageUrl: homepage,
+        homepageLatestCrawl: crawl,
+        primaryCategory,
+        categories,
+        technologies,
+        screenshot,
+      };
     },
 
     async getDomainEntity(domainId) {
