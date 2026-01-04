@@ -123,6 +123,7 @@ export function makeUrlsService(app) {
                 include: {
                   tasks: true,
                   screenshots: { orderBy: [{ createdAt: 'desc' }], take: 1 },
+                  sections: { orderBy: [{ index: 'asc' }] },
                   categories: { include: { category: true } },
                   technologies: { include: { technology: true } },
                 },

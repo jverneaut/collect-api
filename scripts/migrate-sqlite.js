@@ -57,6 +57,22 @@ async function main() {
 
     CREATE INDEX IF NOT EXISTS CrawlRun_domainId_createdAt_idx ON CrawlRun(domainId, createdAt);
     CREATE INDEX IF NOT EXISTS CrawlRun_status_createdAt_idx ON CrawlRun(status, createdAt);
+
+    CREATE TABLE IF NOT EXISTS SectionScreenshot (
+      id TEXT PRIMARY KEY NOT NULL,
+      crawlId TEXT NOT NULL,
+      "index" INTEGER NOT NULL,
+      clipJson TEXT,
+      elementJson TEXT,
+      format TEXT,
+      storageKey TEXT,
+      publicUrl TEXT,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (crawlId) REFERENCES UrlCrawl(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS SectionScreenshot_crawlId_index_unique ON SectionScreenshot(crawlId, "index");
+    CREATE INDEX IF NOT EXISTS SectionScreenshot_crawlId_idx ON SectionScreenshot(crawlId);
   `
   );
 
@@ -79,4 +95,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-

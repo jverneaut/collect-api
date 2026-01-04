@@ -118,6 +118,14 @@ function extensionForContentType(contentType) {
   return "bin";
 }
 
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value ?? null);
+  } catch {
+    return null;
+  }
+}
+
 async function runWithLimit(limit, items, worker) {
   const concurrency = Math.max(1, Math.min(Number(limit) || 1, 50));
   let index = 0;
@@ -243,6 +251,15 @@ export function makeIngestionService(app) {
         urls.push(url);
       }
 
+      if (!urls.some((u) => u.type === "HOMEPAGE")) {
+        const homepage = await app.services.urls.upsertUrlForDomain(domain.id, {
+          url: domain.canonicalUrl,
+          type: "HOMEPAGE",
+          isCanonical: true,
+        });
+        if (!urls.some((u) => u.id === homepage.id)) urls.unshift(homepage);
+      }
+
       update({ progress: { stage: "crawling_urls", urls: urls.length } });
 
       const homepageUrl = urls.find((u) => u.type === "HOMEPAGE") ?? null;
@@ -285,8 +302,13 @@ export function makeIngestionService(app) {
       }
 
       const results = await runWithLimit(urlConcurrency, urls, async (url) => {
+        const tasks = [
+          "SCREENSHOT",
+          "TECHNOLOGIES",
+          ...(url.type === "HOMEPAGE" ? ["SECTIONS"] : []),
+        ];
         const crawl = await app.services.crawls.createCrawl(url.id, {
-          tasks: ["SCREENSHOT", "TECHNOLOGIES"],
+          tasks,
           crawlRunId,
         });
 
@@ -336,6 +358,68 @@ export function makeIngestionService(app) {
           });
           return screenshot;
         })();
+
+        const sectionsPromise =
+          url.type === "HOMEPAGE"
+            ? (async () => {
+                await app.services.crawls.patchTask(crawl.id, "SECTIONS", {
+                  status: "RUNNING",
+                });
+
+                const result = await app.mb.screenshotter.sections(
+                  url.normalizedUrl,
+                  {
+                    format: options.screenshot?.format ?? "png",
+                    fullPage: options.screenshot?.fullPage ?? true,
+                    adblock: options.screenshot?.adblock ?? true,
+                    waitMs: options.screenshot?.waitMs ?? 500,
+                    timeoutMs: options.screenshot?.timeoutMs ?? 90_000,
+                    signal,
+                  },
+                );
+
+                const ext = extensionForContentType(result.contentType);
+                const stored = [];
+
+                for (const [fallbackIndex, section] of (
+                  result.sections ?? []
+                ).entries()) {
+                  if (!section?.buffer?.length) continue;
+                  const index = Number.isFinite(section.index)
+                    ? section.index
+                    : fallbackIndex;
+                  const storageKey = path.posix.join(
+                    "sections",
+                    domain.host,
+                    crawl.id,
+                    `${index}.${ext}`,
+                  );
+                  const absolutePath = app.storage.toAbsolutePath(storageKey);
+                  await mkdir(path.dirname(absolutePath), { recursive: true });
+                  await writeFile(absolutePath, section.buffer);
+
+                  stored.push({
+                    crawlId: crawl.id,
+                    index,
+                    clipJson: safeStringify(section.clip),
+                    elementJson: safeStringify(section.element),
+                    format: ext,
+                    storageKey,
+                    publicUrl: app.storage.toPublicUrl(storageKey),
+                  });
+                }
+
+                await app.services.crawls.setSections(crawl.id, {
+                  items: stored,
+                });
+
+                await app.services.crawls.patchTask(crawl.id, "SECTIONS", {
+                  status: "SUCCESS",
+                });
+
+                return stored.length;
+              })()
+            : null;
 
         const technologiesPromise = (async () => {
           await app.services.crawls.patchTask(crawl.id, "TECHNOLOGIES", {
@@ -426,13 +510,18 @@ export function makeIngestionService(app) {
           return technologies.length;
         })();
 
-        const [screenshotResult, technologiesResult] = await Promise.allSettled(
-          [screenshotPromise, technologiesPromise],
-        );
+        const promises = [screenshotPromise, technologiesPromise];
+        if (sectionsPromise) promises.push(sectionsPromise);
+
+        const [screenshotResult, technologiesResult, sectionsResult] =
+          await Promise.allSettled(promises);
 
         const errors = [];
         const screenshotOk = screenshotResult.status === "fulfilled";
         const technologiesOk = technologiesResult.status === "fulfilled";
+        const sectionsOk = sectionsPromise
+          ? sectionsResult?.status === "fulfilled"
+          : true;
 
         if (!screenshotOk) {
           errors.push(
@@ -453,6 +542,15 @@ export function makeIngestionService(app) {
             error:
               technologiesResult.reason?.message ||
               "Technologies detection failed",
+          });
+        }
+
+        if (sectionsPromise && !sectionsOk) {
+          errors.push(`sections: ${sectionsResult.reason?.message || "failed"}`);
+          await app.services.crawls.patchTask(crawl.id, "SECTIONS", {
+            status: "FAILED",
+            error:
+              sectionsResult.reason?.message || "Sections screenshotting failed",
           });
         }
 

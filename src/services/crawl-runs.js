@@ -68,6 +68,7 @@ export function makeCrawlRunsService(app) {
         url: true,
         tasks: true,
         screenshots: true,
+        sections: { orderBy: [{ index: 'asc' }] },
         categories: { include: { category: true } },
         technologies: { include: { technology: true } },
       };
@@ -189,6 +190,7 @@ export function makeCrawlRunsService(app) {
         const include = {
           url: true,
           screenshots: true,
+          sections: { orderBy: [{ index: 'asc' }] },
           categories: { include: { category: true } },
           technologies: { include: { technology: true } },
         };

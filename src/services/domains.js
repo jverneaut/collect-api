@@ -56,6 +56,7 @@ export function makeDomainsService(app) {
               create: [
                 { type: 'SCREENSHOT' },
                 { type: 'TECHNOLOGIES' },
+                { type: 'SECTIONS' },
               ],
             },
           },
@@ -227,6 +228,7 @@ export function makeDomainsService(app) {
                   include: {
                     tasks: true,
                     screenshots: { orderBy: [{ createdAt: 'desc' }], take: 1 },
+                    sections: { orderBy: [{ index: 'asc' }] },
                     categories: { include: { category: true } },
                     technologies: { include: { technology: true } },
                   },

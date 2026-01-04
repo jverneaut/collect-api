@@ -21,6 +21,7 @@ export function makeCrawlsService(app) {
         include: {
           tasks: true,
           screenshots: { orderBy: [{ createdAt: 'desc' }] },
+          sections: { orderBy: [{ index: 'asc' }] },
           categories: { include: { category: true } },
           technologies: { include: { technology: true } },
         },
@@ -36,6 +37,7 @@ export function makeCrawlsService(app) {
         include: {
           tasks: true,
           screenshots: true,
+          sections: { orderBy: [{ index: 'asc' }] },
           categories: { include: { category: true } },
           technologies: { include: { technology: true } },
         },
@@ -49,6 +51,7 @@ export function makeCrawlsService(app) {
         include: {
           tasks: true,
           screenshots: true,
+          sections: { orderBy: [{ index: 'asc' }] },
           categories: { include: { category: true } },
           technologies: { include: { technology: true } },
         },
@@ -163,6 +166,37 @@ export function makeCrawlsService(app) {
 
     async listScreenshots(crawlId) {
       return app.prisma.screenshot.findMany({ where: { crawlId }, orderBy: [{ createdAt: 'desc' }] });
+    },
+
+    async setSections(crawlId, input) {
+      const crawl = await app.prisma.urlCrawl.findUnique({ where: { id: crawlId } });
+      if (!crawl) throw app.httpErrors.notFound('Crawl not found');
+
+      await app.prisma.$transaction(async (tx) => {
+        await tx.sectionScreenshot.deleteMany({ where: { crawlId: crawl.id } });
+        if (input.items?.length) {
+          await tx.sectionScreenshot.createMany({
+            data: input.items.map((item) => ({
+              crawlId: crawl.id,
+              index: item.index,
+              clipJson: item.clipJson ?? null,
+              elementJson: item.elementJson ?? null,
+              format: item.format ?? null,
+              storageKey: item.storageKey ?? null,
+              publicUrl: item.publicUrl ?? null,
+            })),
+          });
+        }
+      });
+
+      return { count: input.items?.length ?? 0 };
+    },
+
+    async listSections(crawlId) {
+      return app.prisma.sectionScreenshot.findMany({
+        where: { crawlId },
+        orderBy: [{ index: 'asc' }],
+      });
     },
 
     async listCategories(crawlId) {

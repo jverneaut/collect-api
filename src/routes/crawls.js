@@ -4,7 +4,7 @@ const CreateCrawlSchema = {
   properties: {
     tasks: {
       type: 'array',
-      items: { type: 'string', enum: ['SCREENSHOT', 'TECHNOLOGIES', 'CATEGORIES', 'CONTENT', 'COLORS'] },
+      items: { type: 'string', enum: ['SCREENSHOT', 'TECHNOLOGIES', 'SECTIONS', 'CATEGORIES', 'CONTENT', 'COLORS'] },
       default: ['SCREENSHOT', 'TECHNOLOGIES'],
       minItems: 1,
     },
@@ -165,7 +165,7 @@ export async function crawlRoutes(app) {
             crawlId: { type: 'string', minLength: 1 },
             taskType: {
               type: 'string',
-              enum: ['SCREENSHOT', 'TECHNOLOGIES', 'CATEGORIES', 'CONTENT', 'COLORS'],
+              enum: ['SCREENSHOT', 'TECHNOLOGIES', 'SECTIONS', 'CATEGORIES', 'CONTENT', 'COLORS'],
             },
           },
         },

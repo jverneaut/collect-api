@@ -99,6 +99,7 @@ model UrlCrawl {
   updatedAt DateTime @updatedAt
 
   screenshots   Screenshot[]
+  sections      SectionScreenshot[]
   tasks         CrawlTask[]
   categories    CrawlCategory[]
   technologies  CrawlTechnology[]
@@ -144,6 +145,25 @@ model Screenshot {
 
   createdAt DateTime @default(now())
 
+  @@index([crawlId])
+}
+
+model SectionScreenshot {
+  id      String   @id @default(cuid())
+  crawlId String
+  crawl   UrlCrawl @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  index   Int
+
+  clipJson    String?
+  elementJson String?
+
+  format     String?
+  storageKey String?
+  publicUrl  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([crawlId, index])
   @@index([crawlId])
 }
 

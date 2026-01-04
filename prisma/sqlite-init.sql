@@ -112,6 +112,22 @@ CREATE TABLE IF NOT EXISTS Screenshot (
 
 CREATE INDEX IF NOT EXISTS Screenshot_crawlId_idx ON Screenshot(crawlId);
 
+CREATE TABLE IF NOT EXISTS SectionScreenshot (
+  id TEXT PRIMARY KEY NOT NULL,
+  crawlId TEXT NOT NULL,
+  "index" INTEGER NOT NULL,
+  clipJson TEXT,
+  elementJson TEXT,
+  format TEXT,
+  storageKey TEXT,
+  publicUrl TEXT,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (crawlId) REFERENCES UrlCrawl(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS SectionScreenshot_crawlId_index_unique ON SectionScreenshot(crawlId, "index");
+CREATE INDEX IF NOT EXISTS SectionScreenshot_crawlId_idx ON SectionScreenshot(crawlId);
+
 CREATE TABLE IF NOT EXISTS Category (
   id TEXT PRIMARY KEY NOT NULL,
   slug TEXT NOT NULL UNIQUE,

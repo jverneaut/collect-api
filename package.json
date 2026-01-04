@@ -36,7 +36,7 @@
     "@fastify/static": "^6.12.0",
     "@fastify/swagger": "^8.15.0",
     "@jverneaut/mb-pages-finder": "^0.0.2",
-    "@jverneaut/mb-screenshotter": "^0.0.3",
+    "@jverneaut/mb-screenshotter": "^0.1.0",
     "@jverneaut/mb-technologies-finder": "^0.0.1",
     "@prisma/client": "^6.0.0",
     "@scalar/fastify-api-reference": "^1.19.1",

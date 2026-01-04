@@ -39,6 +39,7 @@ export function makeGraphqlSchema() {
     enum CrawlTaskType {
       SCREENSHOT
       TECHNOLOGIES
+      SECTIONS
       CATEGORIES
       CONTENT
       COLORS
@@ -126,6 +127,7 @@ export function makeGraphqlSchema() {
       updatedAt: DateTime!
       tasks: [CrawlTask!]!
       screenshots: [Screenshot!]!
+      sections: [SectionScreenshot!]!
       categories: [CrawlCategory!]!
       technologies: [CrawlTechnology!]!
     }
@@ -150,6 +152,18 @@ export function makeGraphqlSchema() {
       kind: ScreenshotKind!
       width: Int
       height: Int
+      format: String
+      storageKey: String
+      publicUrl: String
+      createdAt: DateTime!
+    }
+
+    type SectionScreenshot {
+      id: ID!
+      crawlId: ID!
+      index: Int!
+      clip: JSON
+      element: JSON
       format: String
       storageKey: String
       publicUrl: String
@@ -314,6 +328,7 @@ export function makeGraphqlResolvers(app) {
           include: {
             tasks: true,
             screenshots: { orderBy: [{ createdAt: 'desc' }] },
+            sections: { orderBy: [{ index: 'asc' }] },
             categories: { include: { category: true } },
             technologies: { include: { technology: true } },
           },
@@ -326,8 +341,27 @@ export function makeGraphqlResolvers(app) {
     UrlCrawl: {
       tasks: async (crawl) => crawl.tasks ?? app.services.crawls.listTasks(crawl.id),
       screenshots: async (crawl) => crawl.screenshots ?? app.services.crawls.listScreenshots(crawl.id),
+      sections: async (crawl) => crawl.sections ?? app.services.crawls.listSections(crawl.id),
       categories: async (crawl) => crawl.categories ?? app.services.crawls.listCategories(crawl.id),
       technologies: async (crawl) => crawl.technologies ?? app.services.crawls.listTechnologies(crawl.id),
+    },
+    SectionScreenshot: {
+      clip: (row) => {
+        if (!row.clipJson) return null;
+        try {
+          return JSON.parse(row.clipJson);
+        } catch {
+          return row.clipJson;
+        }
+      },
+      element: (row) => {
+        if (!row.elementJson) return null;
+        try {
+          return JSON.parse(row.elementJson);
+        } catch {
+          return row.elementJson;
+        }
+      },
     },
     CrawlCategory: {
       category: (row) => row.category,
