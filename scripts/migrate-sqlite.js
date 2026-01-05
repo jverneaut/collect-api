@@ -49,6 +49,7 @@ async function main() {
 
   const screenshotColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(Screenshot);'));
   const hasScreenshotIsPublished = screenshotColumns.some((c) => c.name === 'isPublished');
+  const hasScreenshotProminentColor = screenshotColumns.some((c) => c.name === 'prominentColor');
 
   const sectionColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(SectionScreenshot);'));
   const hasSectionIsPublished = sectionColumns.some((c) => c.name === 'isPublished');
@@ -129,6 +130,10 @@ async function main() {
 
   if (!hasScreenshotIsPublished) {
     await sqlite(dbPath, 'ALTER TABLE Screenshot ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;');
+  }
+
+  if (!hasScreenshotProminentColor) {
+    await sqlite(dbPath, 'ALTER TABLE Screenshot ADD COLUMN prominentColor TEXT;');
   }
 
   if (!hasSectionIsPublished) {

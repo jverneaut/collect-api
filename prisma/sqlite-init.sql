@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS Screenshot (
   format TEXT,
   storageKey TEXT,
   publicUrl TEXT,
+  prominentColor TEXT,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (crawlId) REFERENCES UrlCrawl(id) ON DELETE CASCADE
 );

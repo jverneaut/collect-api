@@ -45,6 +45,21 @@ const IngestBodySchema = {
         },
       },
     },
+    colors: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        timeoutMs: {
+          type: "integer",
+          minimum: 1000,
+          maximum: 300000,
+          default: 60000,
+        },
+        blockImages: { type: "boolean" },
+        adblock: { type: "boolean", default: true },
+        sampleScreens: { type: "integer", minimum: 1, maximum: 10, default: 3 },
+      },
+    },
   },
 };
 

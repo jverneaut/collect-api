@@ -21,6 +21,7 @@ const UpsertScreenshotSchema = {
     format: { type: 'string' },
     storageKey: { type: 'string' },
     publicUrl: { type: 'string' },
+    prominentColor: { type: 'string' },
   },
 };
 

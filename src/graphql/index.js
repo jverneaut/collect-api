@@ -168,6 +168,7 @@ export function makeGraphqlSchema() {
       format: String
       storageKey: String
       publicUrl: String
+      prominentColor: String
       createdAt: DateTime!
     }
 

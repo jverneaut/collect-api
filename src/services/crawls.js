@@ -104,6 +104,7 @@ export function makeCrawlsService(app) {
           format: input.format,
           storageKey: input.storageKey,
           publicUrl: input.publicUrl,
+          prominentColor: input.prominentColor,
         },
       });
     },

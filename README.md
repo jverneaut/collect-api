@@ -24,6 +24,7 @@ The ingestion flow uses the micro-backend clients:
 - `MB_PAGES_FINDER_BASE_URL`
 - `MB_SCREENSHOTTER_BASE_URL`
 - `MB_TECHNOLOGIES_FINDER_BASE_URL`
+- `MB_COLORS_EXTRACTOR_BASE_URL`
 
 Trigger a run (async job):
 

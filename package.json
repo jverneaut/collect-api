@@ -4,7 +4,9 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
+    "predev": "npm run prisma:generate",
     "dev": "node --watch src/index.js",
+    "prestart": "npm run prisma:generate",
     "start": "node src/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -35,6 +37,7 @@
     "@fastify/sensible": "^5.6.0",
     "@fastify/static": "^6.12.0",
     "@fastify/swagger": "^8.15.0",
+    "@jverneaut/mb-colors-extractor": "^0.0.1",
     "@jverneaut/mb-pages-finder": "^0.0.2",
     "@jverneaut/mb-screenshotter": "^0.1.0",
     "@jverneaut/mb-technologies-finder": "^0.0.1",

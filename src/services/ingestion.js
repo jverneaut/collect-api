@@ -118,6 +118,105 @@ function extensionForContentType(contentType) {
   return "bin";
 }
 
+function normalizeCssColor(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return null;
+  if (/^0x[0-9a-f]{6}$/i.test(normalized)) {
+    return `#${normalized.slice(2).toLowerCase()}`;
+  }
+  if (/^[0-9a-f]{3}$/i.test(normalized) || /^[0-9a-f]{6}$/i.test(normalized)) {
+    return `#${normalized.toLowerCase()}`;
+  }
+  if (/^#[0-9a-f]{3,8}$/i.test(normalized)) return normalized.toLowerCase();
+  if (/^(rgb|hsl)a?\(/i.test(normalized)) return normalized;
+  return null;
+}
+
+function clampByte(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const rounded = Math.round(number);
+  if (rounded < 0 || rounded > 255) return null;
+  return rounded;
+}
+
+function rgbToHex(r, g, b) {
+  const rr = clampByte(r);
+  const gg = clampByte(g);
+  const bb = clampByte(b);
+  if (rr === null || gg === null || bb === null) return null;
+  return `#${[rr, gg, bb]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function normalizeProminentColorValue(value) {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === "string") return normalizeCssColor(value);
+
+  if (Array.isArray(value)) {
+    if (value.length >= 3) return rgbToHex(value[0], value[1], value[2]);
+    return null;
+  }
+
+  if (typeof value !== "object") return null;
+
+  if (value.hex) return normalizeCssColor(value.hex);
+  if (value.value) return normalizeProminentColorValue(value.value);
+  if (value.color) return normalizeProminentColorValue(value.color);
+
+  if (typeof value.rgb === "string") return normalizeCssColor(value.rgb);
+  if (Array.isArray(value.rgb)) return rgbToHex(value.rgb[0], value.rgb[1], value.rgb[2]);
+  if (value.rgb && typeof value.rgb === "object") {
+    return rgbToHex(value.rgb.r ?? value.rgb.red, value.rgb.g ?? value.rgb.green, value.rgb.b ?? value.rgb.blue);
+  }
+
+  if ("r" in value || "g" in value || "b" in value) return rgbToHex(value.r, value.g, value.b);
+  if ("red" in value || "green" in value || "blue" in value) return rgbToHex(value.red, value.green, value.blue);
+
+  return null;
+}
+
+function normalizeProminentColorResult(result) {
+  const candidate =
+    result?.signatureColor?.hex ??
+    result?.signatureColor?.color ??
+    result?.palette?.signature ??
+    result?.palette?.accent ??
+    result?.palette?.primary ??
+    result?.palette?.brand ??
+    result?.palette?.accents?.[0] ??
+    result?.accents?.[0] ??
+    result?.backgrounds?.[0] ??
+    result?.texts?.[0] ??
+    result?.data?.prominentColor ??
+    result?.data?.dominantColor ??
+    result?.data?.primaryColor ??
+    result?.data?.mainColor ??
+    result?.data?.dominant ??
+    result?.data?.prominent ??
+    result?.data?.color ??
+    result?.prominentColor ??
+    result?.dominantColor ??
+    result?.primaryColor ??
+    result?.mainColor ??
+    result?.dominant ??
+    result?.prominent ??
+    result?.color ??
+    result?.data?.dominant?.color ??
+    result?.data?.dominant?.value ??
+    result?.data?.prominent?.color ??
+    result?.data?.prominent?.value ??
+    (Array.isArray(result?.data?.colors) ? result.data.colors[0] : null) ??
+    (Array.isArray(result?.data?.palette) ? result.data.palette[0] : null) ??
+    (Array.isArray(result?.colors) ? result.colors[0] : null) ??
+    (Array.isArray(result?.palette) ? result.palette[0] : null) ??
+    null;
+
+  return normalizeProminentColorValue(candidate);
+}
+
 function safeStringify(value) {
   try {
     return JSON.stringify(value ?? null);
@@ -304,6 +403,7 @@ export function makeIngestionService(app) {
       const results = await runWithLimit(urlConcurrency, urls, async (url) => {
         const tasks = [
           "SCREENSHOT",
+          "COLORS",
           "TECHNOLOGIES",
           ...(url.type === "HOMEPAGE" ? ["SECTIONS"] : []),
         ];
@@ -357,6 +457,45 @@ export function makeIngestionService(app) {
             status: "SUCCESS",
           });
           return screenshot;
+        })();
+
+        const colorsPromise = (async () => {
+          await app.services.crawls.patchTask(crawl.id, "COLORS", {
+            status: "RUNNING",
+          });
+
+          const [screenshot, result] = await Promise.all([
+            screenshotPromise,
+            app.mb.colorsExtractor.extract(url.normalizedUrl, {
+              timeoutMs: options.colors?.timeoutMs ?? 60_000,
+              blockImages: options.colors?.blockImages,
+              adblock: options.colors?.adblock ?? true,
+              sampleScreens: options.colors?.sampleScreens ?? 3,
+              signal,
+            }),
+          ]);
+
+          const prominentColor = normalizeProminentColorResult(result);
+          try {
+            await app.prisma.screenshot.update({
+              where: { id: screenshot.id },
+              data: { prominentColor },
+            });
+          } catch (error) {
+            const message = String(error?.message || "");
+            if (message.includes("Unknown argument `prominentColor`")) {
+              throw new Error(
+                "Prisma Client is out of date (missing Screenshot.prominentColor). Run `npm run prisma:generate` and restart the API.",
+              );
+            }
+            throw error;
+          }
+
+          await app.services.crawls.patchTask(crawl.id, "COLORS", {
+            status: "SUCCESS",
+          });
+
+          return prominentColor;
         })();
 
         const sectionsPromise =
@@ -510,14 +649,15 @@ export function makeIngestionService(app) {
           return technologies.length;
         })();
 
-        const promises = [screenshotPromise, technologiesPromise];
+        const promises = [screenshotPromise, colorsPromise, technologiesPromise];
         if (sectionsPromise) promises.push(sectionsPromise);
 
-        const [screenshotResult, technologiesResult, sectionsResult] =
+        const [screenshotResult, colorsResult, technologiesResult, sectionsResult] =
           await Promise.allSettled(promises);
 
         const errors = [];
         const screenshotOk = screenshotResult.status === "fulfilled";
+        const colorsOk = colorsResult.status === "fulfilled";
         const technologiesOk = technologiesResult.status === "fulfilled";
         const sectionsOk = sectionsPromise
           ? sectionsResult?.status === "fulfilled"
@@ -530,6 +670,14 @@ export function makeIngestionService(app) {
           await app.services.crawls.patchTask(crawl.id, "SCREENSHOT", {
             status: "FAILED",
             error: screenshotResult.reason?.message || "Screenshot failed",
+          });
+        }
+
+        if (!colorsOk) {
+          errors.push(`colors: ${colorsResult.reason?.message || "failed"}`);
+          await app.services.crawls.patchTask(crawl.id, "COLORS", {
+            status: "FAILED",
+            error: colorsResult.reason?.message || "Colors extraction failed",
           });
         }
 

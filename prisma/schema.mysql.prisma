@@ -152,6 +152,7 @@ model Screenshot {
   format     String?
   storageKey String?
   publicUrl  String?
+  prominentColor String?
 
   createdAt DateTime @default(now())
 

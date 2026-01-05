@@ -37,6 +37,16 @@ const DomainInputSchema = {
             timeoutMs: { type: "integer", minimum: 1000, maximum: 300000 },
           },
         },
+        colors: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            timeoutMs: { type: "integer", minimum: 1000, maximum: 300000 },
+            blockImages: { type: "boolean" },
+            adblock: { type: "boolean" },
+            sampleScreens: { type: "integer", minimum: 1, maximum: 10 },
+          },
+        },
       },
     },
   },
