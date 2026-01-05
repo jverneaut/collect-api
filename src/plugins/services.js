@@ -6,6 +6,7 @@ import { makeCrawlRunsService } from '../services/crawl-runs.js';
 import { makeTaxonomiesService } from '../services/taxonomies.js';
 import { makeFeedService } from '../services/feed.js';
 import { makeIngestionService } from '../services/ingestion.js';
+import { makePublishingService } from '../services/publishing.js';
 
 export const servicesPlugin = fp(async (app) => {
   app.decorate('services', {
@@ -16,5 +17,6 @@ export const servicesPlugin = fp(async (app) => {
     taxonomies: makeTaxonomiesService(app),
     feed: makeFeedService(app),
     ingestion: makeIngestionService(app),
+    publishing: makePublishingService(app),
   });
 });

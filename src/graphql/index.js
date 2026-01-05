@@ -29,6 +29,11 @@ export function makeGraphqlSchema() {
       FAILED
     }
 
+    enum CrawlRunReviewStatus {
+      PENDING_REVIEW
+      REVIEWED
+    }
+
     enum TaskStatus {
       PENDING
       RUNNING
@@ -55,6 +60,7 @@ export function makeGraphqlSchema() {
       host: String!
       canonicalUrl: String!
       displayName: String
+      isPublished: Boolean!
       createdAt: DateTime!
       updatedAt: DateTime!
       urlsCount: Int!
@@ -72,6 +78,11 @@ export function makeGraphqlSchema() {
       id: ID!
       domainId: ID!
       status: CrawlRunStatus!
+      reviewStatus: CrawlRunReviewStatus!
+      reviewedAt: DateTime
+      isPublished: Boolean!
+      publishedAt: DateTime
+      tags: [String!]!
       jobId: String
       startedAt: DateTime
       finishedAt: DateTime
@@ -113,6 +124,7 @@ export function makeGraphqlSchema() {
       urlId: ID!
       crawlRunId: ID
       status: CrawlStatus!
+      isPublished: Boolean!
       startedAt: DateTime
       finishedAt: DateTime
       crawledAt: DateTime
@@ -150,6 +162,7 @@ export function makeGraphqlSchema() {
       id: ID!
       crawlId: ID!
       kind: ScreenshotKind!
+      isPublished: Boolean!
       width: Int
       height: Int
       format: String
@@ -162,6 +175,7 @@ export function makeGraphqlSchema() {
       id: ID!
       crawlId: ID!
       index: Int!
+      isPublished: Boolean!
       clip: JSON
       element: JSON
       format: String
@@ -315,6 +329,15 @@ export function makeGraphqlResolvers(app) {
           return JSON.parse(crawlRun.optionsJson);
         } catch {
           return crawlRun.optionsJson;
+        }
+      },
+      tags: (crawlRun) => {
+        if (!crawlRun.tagsJson) return [];
+        try {
+          const parsed = JSON.parse(crawlRun.tagsJson);
+          return Array.isArray(parsed) ? parsed.filter((t) => typeof t === 'string') : [];
+        } catch {
+          return [];
         }
       },
     },

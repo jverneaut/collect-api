@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS Domain (
   host TEXT NOT NULL UNIQUE,
   canonicalUrl TEXT NOT NULL,
   displayName TEXT,
+  isPublished INTEGER NOT NULL DEFAULT 0,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -25,6 +26,11 @@ CREATE TABLE IF NOT EXISTS CrawlRun (
   id TEXT PRIMARY KEY NOT NULL,
   domainId TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'PENDING',
+  reviewStatus TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+  reviewedAt DATETIME,
+  isPublished INTEGER NOT NULL DEFAULT 0,
+  publishedAt DATETIME,
+  tagsJson TEXT,
   jobId TEXT,
   startedAt DATETIME,
   finishedAt DATETIME,
@@ -37,6 +43,8 @@ CREATE TABLE IF NOT EXISTS CrawlRun (
 
 CREATE INDEX IF NOT EXISTS CrawlRun_domainId_createdAt_idx ON CrawlRun(domainId, createdAt);
 CREATE INDEX IF NOT EXISTS CrawlRun_status_createdAt_idx ON CrawlRun(status, createdAt);
+CREATE INDEX IF NOT EXISTS CrawlRun_reviewStatus_createdAt_idx ON CrawlRun(reviewStatus, createdAt);
+CREATE INDEX IF NOT EXISTS CrawlRun_isPublished_publishedAt_idx ON CrawlRun(isPublished, publishedAt);
 
 CREATE TABLE IF NOT EXISTS Url (
   id TEXT PRIMARY KEY NOT NULL,
@@ -58,6 +66,7 @@ CREATE TABLE IF NOT EXISTS UrlCrawl (
   urlId TEXT NOT NULL,
   crawlRunId TEXT,
   status TEXT NOT NULL DEFAULT 'PENDING',
+  isPublished INTEGER NOT NULL DEFAULT 0,
   startedAt DATETIME,
   finishedAt DATETIME,
   crawledAt DATETIME,
@@ -101,6 +110,7 @@ CREATE TABLE IF NOT EXISTS Screenshot (
   id TEXT PRIMARY KEY NOT NULL,
   crawlId TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'FULL_PAGE',
+  isPublished INTEGER NOT NULL DEFAULT 0,
   width INTEGER,
   height INTEGER,
   format TEXT,
@@ -116,6 +126,7 @@ CREATE TABLE IF NOT EXISTS SectionScreenshot (
   id TEXT PRIMARY KEY NOT NULL,
   crawlId TEXT NOT NULL,
   "index" INTEGER NOT NULL,
+  isPublished INTEGER NOT NULL DEFAULT 0,
   clipJson TEXT,
   elementJson TEXT,
   format TEXT,

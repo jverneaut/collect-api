@@ -12,6 +12,7 @@ model Domain {
   host         String         @unique
   canonicalUrl String
   displayName  String?
+  isPublished  Boolean        @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -42,6 +43,11 @@ model CrawlRun {
   domain   Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
 
   status    String @default("PENDING")
+  reviewStatus String @default("PENDING_REVIEW")
+  reviewedAt DateTime?
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+  tagsJson   String?
   jobId     String?
   startedAt DateTime?
   finishedAt DateTime?
@@ -55,6 +61,8 @@ model CrawlRun {
 
   @@index([domainId, createdAt])
   @@index([status, createdAt])
+  @@index([reviewStatus, createdAt])
+  @@index([isPublished, publishedAt])
 }
 
 model Url {
@@ -83,6 +91,7 @@ model UrlCrawl {
   crawlRun   CrawlRun? @relation(fields: [crawlRunId], references: [id], onDelete: SetNull)
 
   status    String @default("PENDING")
+  isPublished Boolean @default(false)
   startedAt DateTime?
   finishedAt DateTime?
   crawledAt DateTime?
@@ -136,6 +145,7 @@ model Screenshot {
   crawlId String
   crawl   UrlCrawl       @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   kind    String @default("FULL_PAGE")
+  isPublished Boolean @default(false)
 
   width      Int?
   height     Int?
@@ -153,6 +163,7 @@ model SectionScreenshot {
   crawlId String
   crawl   UrlCrawl @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   index   Int
+  isPublished Boolean @default(false)
 
   clipJson    String?
   elementJson String?

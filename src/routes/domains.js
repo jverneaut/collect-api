@@ -85,6 +85,14 @@ const GetQuerySchema = {
   },
 };
 
+const PatchDomainSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    isPublished: { type: "boolean" },
+  },
+};
+
 export async function domainRoutes(app) {
   app.post(
     "/",
@@ -121,6 +129,28 @@ export async function domainRoutes(app) {
       const result = await app.services.domains.getDomain(
         request.params.domainId,
         request.query,
+      );
+      reply.ok(result);
+    },
+  );
+
+  app.patch(
+    "/:domainId",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["domainId"],
+          additionalProperties: false,
+          properties: { domainId: { type: "string", minLength: 1 } },
+        },
+        body: PatchDomainSchema,
+      },
+    },
+    async (request, reply) => {
+      const result = await app.services.domains.patchDomain(
+        request.params.domainId,
+        request.body,
       );
       reply.ok(result);
     },

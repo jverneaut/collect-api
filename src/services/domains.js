@@ -298,6 +298,22 @@ export function makeDomainsService(app) {
       return app.prisma.domainProfile.findUnique({ where: { domainId } });
     },
 
+    async patchDomain(domainId, patch) {
+      const data = {};
+      if (patch?.isPublished === true || patch?.isPublished === false) {
+        data.isPublished = patch.isPublished;
+      }
+
+      if (Object.keys(data).length === 0) {
+        throw app.httpErrors.badRequest('No valid fields to update');
+      }
+
+      return app.prisma.domain.update({
+        where: { id: domainId },
+        data,
+      });
+    },
+
     async deleteDomain(domainId) {
       await app.prisma.domain.delete({ where: { id: domainId } });
       return { deleted: true };

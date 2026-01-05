@@ -24,6 +24,16 @@ function toPublicError(error, request) {
         },
       };
     }
+    if (error.code === 'P2021' || error.code === 'P2022') {
+      return {
+        statusCode: 500,
+        payload: {
+          code: 'DATABASE_SCHEMA_OUTDATED',
+          message: 'Database schema is out of date. Run `npm run db:migrate` and restart the server.',
+          details: { prisma: { code: error.code, meta: error.meta } },
+        },
+      };
+    }
     if (error.code === 'P2025') {
       return {
         statusCode: 404,

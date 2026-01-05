@@ -35,6 +35,23 @@ async function main() {
 
   const columns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(UrlCrawl);'));
   const hasCrawlRunId = columns.some((c) => c.name === 'crawlRunId');
+  const hasUrlCrawlIsPublished = columns.some((c) => c.name === 'isPublished');
+
+  const domainColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(Domain);'));
+  const hasDomainIsPublished = domainColumns.some((c) => c.name === 'isPublished');
+
+  const crawlRunColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(CrawlRun);'));
+  const hasCrawlRunReviewStatus = crawlRunColumns.some((c) => c.name === 'reviewStatus');
+  const hasCrawlRunReviewedAt = crawlRunColumns.some((c) => c.name === 'reviewedAt');
+  const hasCrawlRunIsPublished = crawlRunColumns.some((c) => c.name === 'isPublished');
+  const hasCrawlRunPublishedAt = crawlRunColumns.some((c) => c.name === 'publishedAt');
+  const hasCrawlRunTagsJson = crawlRunColumns.some((c) => c.name === 'tagsJson');
+
+  const screenshotColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(Screenshot);'));
+  const hasScreenshotIsPublished = screenshotColumns.some((c) => c.name === 'isPublished');
+
+  const sectionColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(SectionScreenshot);'));
+  const hasSectionIsPublished = sectionColumns.some((c) => c.name === 'isPublished');
 
   await sqlite(dbPath, 'PRAGMA foreign_keys = ON;');
 
@@ -45,6 +62,11 @@ async function main() {
       id TEXT PRIMARY KEY NOT NULL,
       domainId TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'PENDING',
+      reviewStatus TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+      reviewedAt DATETIME,
+      isPublished INTEGER NOT NULL DEFAULT 0,
+      publishedAt DATETIME,
+      tagsJson TEXT,
       jobId TEXT,
       startedAt DATETIME,
       finishedAt DATETIME,
@@ -62,6 +84,7 @@ async function main() {
       id TEXT PRIMARY KEY NOT NULL,
       crawlId TEXT NOT NULL,
       "index" INTEGER NOT NULL,
+      isPublished INTEGER NOT NULL DEFAULT 0,
       clipJson TEXT,
       elementJson TEXT,
       format TEXT,
@@ -79,6 +102,46 @@ async function main() {
   if (!hasCrawlRunId) {
     await sqlite(dbPath, 'ALTER TABLE UrlCrawl ADD COLUMN crawlRunId TEXT;');
   }
+
+  if (!hasUrlCrawlIsPublished) {
+    await sqlite(dbPath, "ALTER TABLE UrlCrawl ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;");
+  }
+
+  if (!hasDomainIsPublished) {
+    await sqlite(dbPath, "ALTER TABLE Domain ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;");
+  }
+
+  if (!hasCrawlRunReviewStatus) {
+    await sqlite(dbPath, "ALTER TABLE CrawlRun ADD COLUMN reviewStatus TEXT NOT NULL DEFAULT 'PENDING_REVIEW';");
+  }
+  if (!hasCrawlRunReviewedAt) {
+    await sqlite(dbPath, 'ALTER TABLE CrawlRun ADD COLUMN reviewedAt DATETIME;');
+  }
+  if (!hasCrawlRunIsPublished) {
+    await sqlite(dbPath, 'ALTER TABLE CrawlRun ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!hasCrawlRunPublishedAt) {
+    await sqlite(dbPath, 'ALTER TABLE CrawlRun ADD COLUMN publishedAt DATETIME;');
+  }
+  if (!hasCrawlRunTagsJson) {
+    await sqlite(dbPath, 'ALTER TABLE CrawlRun ADD COLUMN tagsJson TEXT;');
+  }
+
+  if (!hasScreenshotIsPublished) {
+    await sqlite(dbPath, 'ALTER TABLE Screenshot ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;');
+  }
+
+  if (!hasSectionIsPublished) {
+    await sqlite(dbPath, 'ALTER TABLE SectionScreenshot ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;');
+  }
+
+  await sqlite(
+    dbPath,
+    `
+    CREATE INDEX IF NOT EXISTS CrawlRun_reviewStatus_createdAt_idx ON CrawlRun(reviewStatus, createdAt);
+    CREATE INDEX IF NOT EXISTS CrawlRun_isPublished_publishedAt_idx ON CrawlRun(isPublished, publishedAt);
+  `,
+  );
 
   await sqlite(
     dbPath,
