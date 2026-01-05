@@ -165,6 +165,9 @@ CREATE TABLE IF NOT EXISTS Technology (
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   websiteUrl TEXT,
+  iconStorageKey TEXT,
+  iconPublicUrl TEXT,
+  iconContentType TEXT,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

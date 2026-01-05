@@ -197,6 +197,8 @@ export function makeGraphqlSchema() {
       slug: String!
       name: String!
       websiteUrl: String
+      iconPublicUrl: String
+      iconContentType: String
     }
 
     type CrawlCategory {

@@ -139,19 +139,22 @@ export function makeCrawlsService(app) {
       const crawl = await app.prisma.urlCrawl.findUnique({ where: { id: crawlId } });
       if (!crawl) throw app.httpErrors.notFound('Crawl not found');
 
+      const resolved = [];
+      for (const item of input.items) {
+        resolved.push({
+          technology: await app.services.technologies.upsertTechnology(item),
+          confidence: item.confidence ?? null,
+        });
+      }
+
       const items = await app.prisma.$transaction(async (tx) => {
         await tx.crawlTechnology.deleteMany({ where: { crawlId: crawl.id } });
 
         const rows = [];
-        for (const item of input.items) {
-          const technology = await tx.technology.upsert({
-            where: { slug: item.slug },
-            update: { name: item.name, websiteUrl: item.websiteUrl },
-            create: { slug: item.slug, name: item.name, websiteUrl: item.websiteUrl },
-          });
-          rows.push({ technology, confidence: item.confidence ?? null });
+        for (const row of resolved) {
+          rows.push(row);
           await tx.crawlTechnology.create({
-            data: { crawlId: crawl.id, technologyId: technology.id, confidence: item.confidence },
+            data: { crawlId: crawl.id, technologyId: row.technology.id, confidence: row.confidence ?? undefined },
           });
         }
 

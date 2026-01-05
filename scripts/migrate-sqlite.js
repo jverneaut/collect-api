@@ -54,6 +54,11 @@ async function main() {
   const sectionColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(SectionScreenshot);'));
   const hasSectionIsPublished = sectionColumns.some((c) => c.name === 'isPublished');
 
+  const technologyColumns = parseTableInfo(await sqlite(dbPath, 'PRAGMA table_info(Technology);'));
+  const hasTechnologyIconStorageKey = technologyColumns.some((c) => c.name === 'iconStorageKey');
+  const hasTechnologyIconPublicUrl = technologyColumns.some((c) => c.name === 'iconPublicUrl');
+  const hasTechnologyIconContentType = technologyColumns.some((c) => c.name === 'iconContentType');
+
   await sqlite(dbPath, 'PRAGMA foreign_keys = ON;');
 
   await sqlite(
@@ -138,6 +143,16 @@ async function main() {
 
   if (!hasSectionIsPublished) {
     await sqlite(dbPath, 'ALTER TABLE SectionScreenshot ADD COLUMN isPublished INTEGER NOT NULL DEFAULT 0;');
+  }
+
+  if (!hasTechnologyIconStorageKey) {
+    await sqlite(dbPath, 'ALTER TABLE Technology ADD COLUMN iconStorageKey TEXT;');
+  }
+  if (!hasTechnologyIconPublicUrl) {
+    await sqlite(dbPath, 'ALTER TABLE Technology ADD COLUMN iconPublicUrl TEXT;');
+  }
+  if (!hasTechnologyIconContentType) {
+    await sqlite(dbPath, 'ALTER TABLE Technology ADD COLUMN iconContentType TEXT;');
   }
 
   await sqlite(

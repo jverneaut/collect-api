@@ -209,6 +209,9 @@ model Technology {
   slug       String  @unique
   name       String
   websiteUrl String?
+  iconStorageKey String?
+  iconPublicUrl String?
+  iconContentType String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

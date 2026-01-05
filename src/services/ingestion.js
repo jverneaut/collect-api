@@ -365,27 +365,12 @@ export function makeIngestionService(app) {
 
       let sharedTechnologyIdsBySlug = null;
       if (technologiesScope === "HOMEPAGE" && discoveryTechnologies.length) {
-        sharedTechnologyIdsBySlug = await app.prisma.$transaction(
-          async (tx) => {
-            const map = new Map();
-            for (const tech of discoveryTechnologies) {
-              const technology = await tx.technology.upsert({
-                where: { slug: tech.slug },
-                update: {
-                  name: tech.name,
-                  websiteUrl: tech.websiteUrl ?? undefined,
-                },
-                create: {
-                  slug: tech.slug,
-                  name: tech.name,
-                  websiteUrl: tech.websiteUrl ?? undefined,
-                },
-              });
-              map.set(tech.slug, technology.id);
-            }
-            return map;
-          },
-        );
+        const map = new Map();
+        for (const tech of discoveryTechnologies) {
+          const technology = await app.services.technologies.upsertTechnology(tech, { signal });
+          map.set(tech.slug, technology.id);
+        }
+        sharedTechnologyIdsBySlug = map;
       }
 
       const precomputedTechnologiesByUrlId = new Map();
@@ -573,27 +558,11 @@ export function makeIngestionService(app) {
               });
               for (const tech of discoveryTechnologies) {
                 const technologyId = sharedTechnologyIdsBySlug?.get(tech.slug);
-                const resolvedTechnologyId =
-                  technologyId ??
-                  (
-                    await tx.technology.upsert({
-                      where: { slug: tech.slug },
-                      update: {
-                        name: tech.name,
-                        websiteUrl: tech.websiteUrl ?? undefined,
-                      },
-                      create: {
-                        slug: tech.slug,
-                        name: tech.name,
-                        websiteUrl: tech.websiteUrl ?? undefined,
-                      },
-                    })
-                  ).id;
-
+                if (!technologyId) continue;
                 await tx.crawlTechnology.create({
                   data: {
                     crawlId: crawl.id,
-                    technologyId: resolvedTechnologyId,
+                    technologyId,
                     confidence: tech.confidence ?? undefined,
                   },
                 });
@@ -616,28 +585,24 @@ export function makeIngestionService(app) {
               }),
             );
 
+          const resolved = [];
+          for (const tech of technologies) {
+            resolved.push({
+              technology: await app.services.technologies.upsertTechnology(tech, { signal }),
+              confidence: tech.confidence,
+            });
+          }
+
           await app.prisma.$transaction(async (tx) => {
             await tx.crawlTechnology.deleteMany({
               where: { crawlId: crawl.id },
             });
-            for (const tech of technologies) {
-              const technology = await tx.technology.upsert({
-                where: { slug: tech.slug },
-                update: {
-                  name: tech.name,
-                  websiteUrl: tech.websiteUrl ?? undefined,
-                },
-                create: {
-                  slug: tech.slug,
-                  name: tech.name,
-                  websiteUrl: tech.websiteUrl ?? undefined,
-                },
-              });
+            for (const { technology, confidence } of resolved) {
               await tx.crawlTechnology.create({
                 data: {
                   crawlId: crawl.id,
                   technologyId: technology.id,
-                  confidence: tech.confidence ?? undefined,
+                  confidence: confidence ?? undefined,
                 },
               });
             }
